@@ -2,9 +2,14 @@ import "server-only";
 
 import { boolParam, getDatabase } from "@/lib/db/client";
 import { DEFAULT_MODEL_REGISTRY, DEFAULT_PROVIDERS } from "./registry";
-import { getLocalOpenAiConfig } from "./adapters/openai-compatible";
+import { buildOllamaDynamicModels, buildOpenAiCompatibleDynamicModels } from "./dynamic-models";
+import {
+  getLocalOpenAiConfig,
+  getOpenAiCloudConfig,
+  listLocalOpenAiModels,
+  probeOpenAiCompatibleLatency,
+} from "./adapters/openai-compatible";
 import { getOllamaBaseUrl, listOllamaModels, probeOllamaLatency } from "./adapters/ollama";
-import { probeOpenAiCompatibleLatency } from "./adapters/openai-compatible";
 import type { AiCapabilities, AiHealthStatus, AiModel, AiProvider } from "./types";
 
 function parseCaps(json: string): AiCapabilities {
@@ -121,9 +126,11 @@ export async function getModelsWithHealth(): Promise<AiModel[]> {
 
   let localOpenAiOnline = false;
   let localLatency: number | null = null;
+  let localOpenAiModelIds: string[] = [];
   if (getLocalOpenAiConfig()) {
     try {
       localLatency = await probeOpenAiCompatibleLatency();
+      localOpenAiModelIds = await listLocalOpenAiModels();
       localOpenAiOnline = true;
     } catch {
       localOpenAiOnline = false;
@@ -134,8 +141,26 @@ export async function getModelsWithHealth(): Promise<AiModel[]> {
     );
   }
 
+  let openAiCloudOnline = false;
+  if (getOpenAiCloudConfig()) {
+    try {
+      const config = getOpenAiCloudConfig()!;
+      const response = await fetch(`${config.base}/models`, {
+        headers: { Authorization: `Bearer ${config.apiKey}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      openAiCloudOnline = response.ok;
+    } catch {
+      openAiCloudOnline = false;
+    }
+    await db.run(
+      "UPDATE ai_providers SET health_status = ?, last_checked = ? WHERE id = 'openai'",
+      [openAiCloudOnline ? "connected" : "offline", new Date().toISOString()],
+    );
+  }
+
   const now = new Date().toISOString();
-  return rows.map((row) => {
+  const mapped = rows.map((row) => {
     const providerId = String(row.provider_id);
     const apiModelId = String(row.api_model_id);
     let health: AiHealthStatus = "unknown";
@@ -154,7 +179,18 @@ export async function getModelsWithHealth(): Promise<AiModel[]> {
         loaded = false;
       }
     } else if (providerId === "local_openai") {
-      health = localOpenAiOnline ? "connected" : getLocalOpenAiConfig() ? "offline" : "offline";
+      if (!getLocalOpenAiConfig()) health = "offline";
+      else if (!localOpenAiOnline) health = "offline";
+      else if (localOpenAiModelIds.includes(apiModelId) || localOpenAiModelIds.length === 0) {
+        health = "connected";
+        loaded = true;
+      } else {
+        health = "offline";
+        loaded = false;
+      }
+    } else if (providerId === "openai") {
+      health = openAiCloudOnline ? "connected" : "offline";
+      loaded = openAiCloudOnline;
     } else if (providerId === "custom" && row.id === "gpt-6-astra") {
       health = "offline";
     } else {
@@ -188,6 +224,20 @@ export async function getModelsWithHealth(): Promise<AiModel[]> {
       errorCount: Number(row.error_count ?? 0),
     };
   });
+
+  const existingApiIds = new Set(mapped.map((m) => m.apiModelId));
+  const dynamicOllama =
+    ollamaOnline && ollamaInstalled.size
+      ? buildOllamaDynamicModels(ollamaInstalled, existingApiIds, now)
+      : [];
+  for (const model of dynamicOllama) existingApiIds.add(model.apiModelId);
+
+  const dynamicLocalOpenAi =
+    localOpenAiOnline && localOpenAiModelIds.length
+      ? buildOpenAiCompatibleDynamicModels(localOpenAiModelIds, existingApiIds, now)
+      : [];
+
+  return [...mapped, ...dynamicOllama, ...dynamicLocalOpenAi];
 }
 
 export async function getProviders(): Promise<AiProvider[]> {

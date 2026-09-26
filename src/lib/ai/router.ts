@@ -61,8 +61,28 @@ export async function routeAutoModel(
   }
 
   const fast = local.filter((m) => m.speedTier === "fast" || m.category === "chat");
-  const chosen = pickInstalled(fast, ollamaNames) ?? pickInstalled(local, ollamaNames);
+  const chosen = pickInstalled(fast, ollamaNames) ?? pickInstalled(local, ollamaNames) ?? local[0];
   if (chosen) return { model: chosen, reason: "Fast local response", route: "fast_local" };
 
-  throw new Error("No connected local model available. Configure OLLAMA_BASE_URL or AI_LOCAL_ENDPOINT.");
+  if (!options.privateMode) {
+    const cloud = models.filter((m) => !m.local && m.enabled && m.healthStatus === "connected");
+    const cloudPick = cloud.find((m) => m.category === "chat") ?? cloud[0];
+    if (cloudPick) {
+      return { model: cloudPick, reason: "Cloud model (no local model connected)", route: "cloud_advanced" };
+    }
+  }
+
+  const ollamaUrl = process.env.OLLAMA_BASE_URL?.trim();
+  const localEndpoint = process.env.AI_LOCAL_ENDPOINT?.trim();
+  if (!ollamaUrl && !localEndpoint && !process.env.OPENAI_API_KEY?.trim()) {
+    throw new Error(
+      "No AI model configured. Set OLLAMA_BASE_URL, AI_LOCAL_ENDPOINT, or OPENAI_API_KEY in your environment.",
+    );
+  }
+  if (ollamaUrl || localEndpoint) {
+    throw new Error(
+      "Ollama endpoint is configured but unreachable or has no installed models. Verify the server is online and models are pulled.",
+    );
+  }
+  throw new Error("OpenAI is configured but unreachable. Check OPENAI_API_KEY and network access.");
 }

@@ -10,6 +10,10 @@ export function FeedbackDialog() {
 
   async function submit() {
     setStatus(null);
+    if (message.trim().length < 10) {
+      setStatus("Please enter at least 10 characters.");
+      return;
+    }
     const response = await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -42,7 +46,14 @@ export function FeedbackDialog() {
         <option value="recommendation">Recommendation quality</option>
         <option value="general">General</option>
       </select>
-      <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2" placeholder="Tell us what worked or what didn't…" />
+      <textarea
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        rows={4}
+        className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
+        placeholder="Tell us what worked or what didn't… (min. 10 characters)"
+      />
+      <p className="text-xs text-[var(--text-secondary)]">Stored securely — used to improve Flutter Films.</p>
       <div className="flex gap-2">
         <button type="button" className="btn btn-primary" onClick={submit}>Submit</button>
         <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>

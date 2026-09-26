@@ -30,7 +30,12 @@ export function CopilotChat() {
       .then((r) => r.json())
       .then((data) => {
         setModels(data.models ?? []);
-        setOllamaConnected(Boolean(data.ollamaConfigured) && data.providers?.find((p: { id: string }) => p.id === "ollama")?.healthStatus === "connected");
+        const connectedCount = (data.models ?? []).filter((m: AiModel) => m.healthStatus === "connected").length;
+        setOllamaConnected(
+          connectedCount > 0 ||
+            (Boolean(data.ollamaConfigured) &&
+              data.providers?.find((p: { id: string }) => p.id === "ollama")?.healthStatus === "connected"),
+        );
       })
       .catch(() => {});
   }, []);

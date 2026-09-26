@@ -11,6 +11,18 @@ export function getLocalOpenAiConfig() {
   return { base, apiKey };
 }
 
+export async function listLocalOpenAiModels(): Promise<string[]> {
+  const config = getLocalOpenAiConfig();
+  if (!config) return [];
+  const response = await fetch(`${config.base}/models`, {
+    headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : undefined,
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error(`Local models list failed (${response.status})`);
+  const data = (await response.json()) as { data?: Array<{ id: string }> };
+  return (data.data ?? []).map((m) => m.id).filter(Boolean);
+}
+
 export async function probeOpenAiCompatibleLatency(): Promise<number> {
   const config = getLocalOpenAiConfig();
   if (!config) throw new Error("AI_LOCAL_ENDPOINT not configured");

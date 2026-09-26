@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getDatabase } from "@/lib/db/client";
+import { boolParam, getDatabase } from "@/lib/db/client";
 import { randomUUID } from "node:crypto";
 
 export type GenerationKind = "image" | "video" | "poster" | "movie_night_card" | "creative_concept";
@@ -26,7 +26,7 @@ export async function createGenerationJob(input: {
       input.kind,
       input.providerId ?? null,
       input.modelId ?? null,
-      input.local ? 1 : 0,
+      boolParam(Boolean(input.local)),
       input.prompt ?? null,
       input.input ? JSON.stringify(input.input) : null,
       now,

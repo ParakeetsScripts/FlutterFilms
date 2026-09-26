@@ -18,7 +18,7 @@ async function loadRunStats(slug: string): Promise<RunStats> {
       [slug],
     );
     const failures = await db.get<{ failure_count: number }>(
-      `SELECT COUNT(*) AS failure_count FROM feature_runs WHERE feature_slug = ? AND success = 0`,
+      `SELECT COUNT(*) AS failure_count FROM feature_runs WHERE feature_slug = ? AND success IS NOT TRUE`,
       [slug],
     );
     const last = await db.get<{ last_run_at: string }>(
@@ -26,7 +26,7 @@ async function loadRunStats(slug: string): Promise<RunStats> {
       [slug],
     );
     const lastErr = await db.get<{ last_error: string }>(
-      `SELECT error AS last_error FROM feature_runs WHERE feature_slug = ? AND success = 0 ORDER BY created_at DESC LIMIT 1`,
+      `SELECT error AS last_error FROM feature_runs WHERE feature_slug = ? AND success IS NOT TRUE ORDER BY created_at DESC LIMIT 1`,
       [slug],
     );
     return {

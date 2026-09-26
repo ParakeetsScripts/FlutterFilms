@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getDatabase } from "@/lib/db/client";
+import { boolParam, getDatabase } from "@/lib/db/client";
 import { getFeatureDefinition, getFeatureDefinitionById } from "./definitions";
 import { executeFeatureService, type FeatureContext } from "./services";
 import type { FeatureRunInput, FeatureRunResult } from "./types";
@@ -29,7 +29,7 @@ async function recordRun(
         crypto.randomUUID(),
         slug,
         userId ?? null,
-        result.status === "success" ? 1 : 0,
+        boolParam(result.status === "success"),
         result.status,
         result.error ?? null,
         latencyMs,

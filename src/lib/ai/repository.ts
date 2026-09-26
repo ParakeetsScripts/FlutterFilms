@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getDatabase } from "@/lib/db/client";
+import { boolParam, getDatabase } from "@/lib/db/client";
 import { DEFAULT_MODEL_REGISTRY, DEFAULT_PROVIDERS } from "./registry";
 import { getLocalOpenAiConfig } from "./adapters/openai-compatible";
 import { getOllamaBaseUrl, listOllamaModels, probeOllamaLatency } from "./adapters/ollama";
@@ -15,18 +15,14 @@ function parseCaps(json: string): AiCapabilities {
   }
 }
 
-function boolParam(value: boolean) {
-  return value ? 1 : 0;
-}
-
 export async function seedAiRegistry() {
   const db = await getDatabase();
   for (const provider of DEFAULT_PROVIDERS) {
     await db.run(
       `INSERT INTO ai_providers (id, name, kind, endpoint, enabled, local, health_status)
-       VALUES (?, ?, ?, ?, 1, ?, 'unknown')
+       VALUES (?, ?, ?, ?, ?, ?, 'unknown')
        ON CONFLICT(id) DO NOTHING`,
-      [provider.id, provider.name, provider.kind, null, boolParam(provider.local)],
+      [provider.id, provider.name, provider.kind, null, boolParam(true), boolParam(provider.local)],
     );
   }
   for (const model of DEFAULT_MODEL_REGISTRY) {
@@ -217,11 +213,11 @@ export async function getUsageSummary() {
   const db = await getDatabase();
   const cloud = await db.get<{ count: number; tin: number | null; tout: number | null }>(
     `SELECT COUNT(*) as count, SUM(tokens_in) as tin, SUM(tokens_out) as tout
-     FROM model_usage WHERE local = 0 OR local = false`,
+     FROM model_usage WHERE local IS NOT TRUE`,
   );
   const local = await db.get<{ count: number; tin: number | null; tout: number | null }>(
     `SELECT COUNT(*) as count, SUM(tokens_in) as tin, SUM(tokens_out) as tout
-     FROM model_usage WHERE local = 1 OR local = true`,
+     FROM model_usage WHERE local IS TRUE`,
   );
   return {
     cloud: { requests: cloud?.count ?? 0, tokensIn: cloud?.tin ?? 0, tokensOut: cloud?.tout ?? 0, apiCostUsd: null },

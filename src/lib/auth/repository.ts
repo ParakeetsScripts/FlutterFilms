@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getDatabase } from "@/lib/db/client";
+import { boolParam, getDatabase } from "@/lib/db/client";
 import { hashPassword } from "./password";
 import { randomUUID } from "node:crypto";
 
@@ -29,9 +29,9 @@ export async function createEmailUser(input: {
     [id, now],
   );
   await db.run(
-    `INSERT INTO profiles (id, user_id, bio, public_taste, created_at) VALUES (?, ?, NULL, 0, ?)
+    `INSERT INTO profiles (id, user_id, bio, public_taste, created_at) VALUES (?, ?, NULL, ?, ?)
      ON CONFLICT(user_id) DO NOTHING`,
-    [randomUUID(), id, now],
+    [randomUUID(), id, boolParam(false), now],
   );
   return id;
 }
@@ -74,9 +74,10 @@ export async function findOrCreateOAuthUser(input: {
       [userId, input.email.toLowerCase(), input.displayName ?? null, input.avatarUrl ?? null, now, now, now],
     );
     await db.run(`INSERT INTO user_preferences (user_id, settings_json, updated_at) VALUES (?, '{}', ?)`, [userId, now]);
-    await db.run(`INSERT INTO profiles (id, user_id, public_taste, created_at) VALUES (?, ?, 0, ?)`, [
+    await db.run(`INSERT INTO profiles (id, user_id, public_taste, created_at) VALUES (?, ?, ?, ?)`, [
       randomUUID(),
       userId,
+      boolParam(false),
       now,
     ]);
   }

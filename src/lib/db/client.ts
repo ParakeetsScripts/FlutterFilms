@@ -11,6 +11,11 @@ export function isPostgres(): boolean {
   return url.startsWith("postgres");
 }
 
+/** Bind boolean columns for the active driver (Postgres BOOLEAN vs SQLite INTEGER). */
+export function boolParam(value: boolean): boolean | number {
+  return isPostgres() ? value : value ? 1 : 0;
+}
+
 export async function getDatabase(): Promise<DatabaseDriver> {
   if (driver) return driver;
   driver = isPostgres() ? createPostgresDriver() : createSqliteDriver();

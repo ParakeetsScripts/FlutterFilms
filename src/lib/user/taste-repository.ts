@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getDatabase } from "@/lib/db/client";
+import { boolParam, getDatabase } from "@/lib/db/client";
 import { randomUUID } from "node:crypto";
 
 export type TasteSignal = {
@@ -59,7 +59,7 @@ export async function resetTasteSignals(userId: string) {
 export async function setTasteLearningPaused(userId: string, paused: boolean) {
   const db = await getDatabase();
   await db.run("UPDATE users SET taste_learning_paused = ?, updated_at = ? WHERE id = ?", [
-    paused ? 1 : 0,
+    boolParam(paused),
     new Date().toISOString(),
     userId,
   ]);

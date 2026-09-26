@@ -156,7 +156,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <footer className="site-footer">
         <div className="site-footer__grid">
           <div className="site-footer__brand-col">
-            <p className="site-footer__brand">{SITE_FULL_NAME}</p>
             <p className="site-footer__tagline">
               {SITE_TAGLINE} Metadata from TMDB and IMDb — {SITE_NAME} does not host films.
             </p>

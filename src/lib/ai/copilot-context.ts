@@ -1,7 +1,7 @@
 import "server-only";
 
 import { SITE_FULL_NAME, SITE_NAME } from "@/lib/brand";
-import { searchCatalog } from "@/lib/sync/catalog";
+import { buildEvidencePacket } from "./context";
 
 import type { SpoilerLevel } from "./intelligence/briefing";
 import { buildAgentSystemPrompt, type AgentMemory, type InterviewProfile } from "./intelligence/agent";
@@ -9,11 +9,14 @@ import { buildAgentSystemPrompt, type AgentMemory, type InterviewProfile } from 
 const SYSTEM_BASE = `You are ${SITE_FULL_NAME} AI Copilot — a premium movie intelligence assistant.
 
 RULES:
-- Distinguish verified catalog facts from AI suggestions. Label speculation clearly.
+- Use supplied VERIFIED MOVIE DATA as authoritative for factual claims (runtime, release date, ratings, cast, crew).
+- Distinguish verified catalog facts from AI interpretation. Label speculation clearly.
 - Never fabricate ratings, cast, release dates, awards, or availability.
 - TMDB and IMDb ratings are separate sources — never average them.
+- Never claim the user watched or liked a title unless USER TASTE SIGNALS support it.
 - ${SITE_NAME} is a discovery platform; it does not host copyrighted films.
 - For "where to watch", direct users to provider availability, not piracy.
+- When evidence is missing, say it is unavailable — do not guess.
 - Be concise, cinematic, and helpful.`;
 
 export async function buildCopilotSystemPrompt(
@@ -24,25 +27,29 @@ export async function buildCopilotSystemPrompt(
     interviewProfile?: InterviewProfile | null;
     toolResults?: string;
     sources?: string[];
+    favorites?: number[];
+    history?: number[];
+    watchlist?: number[];
+    movieIds?: number[];
   } = {},
 ): Promise<string> {
   const query = userQuery.trim();
   if (query.length < 3) return SYSTEM_BASE;
 
   let catalogBlock = "";
+  let evidenceSources: string[] = options.sources ?? [];
   try {
-    const results = await searchCatalog(query, 1);
-    const top = results.results.slice(0, 5);
-    if (top.length) {
-      catalogBlock = `\n\nVERIFIED CATALOG MATCHES (from local TMDB/IMDb sync):\n${top
-        .map(
-          (m) =>
-            `- ${m.title}${m.year ? ` (${m.year})` : ""} · TMDB id ${m.id} · TMDB ${m.voteAverage ?? "n/a"}`,
-        )
-        .join("\n")}`;
-    }
+    const packet = await buildEvidencePacket({
+      query,
+      movieIds: options.movieIds,
+      favorites: options.favorites,
+      history: options.history,
+      watchlist: options.watchlist,
+    });
+    if (packet.textBlock) catalogBlock = `\n\n${packet.textBlock}`;
+    evidenceSources = [...new Set([...evidenceSources, ...packet.sourcesUsed])];
   } catch {
-    /* search optional */
+    /* evidence optional */
   }
 
   const spoiler = options.spoilerLevel
@@ -56,8 +63,8 @@ export async function buildCopilotSystemPrompt(
   const tools = options.toolResults
     ? `\n\nTOOL RESULTS (verified data — cite these, never invent beyond them):\n${options.toolResults}`
     : "";
-  const sourceNote = options.sources?.length
-    ? `\n\nAvailable sources for this turn: ${options.sources.join(", ")}`
+  const sourceNote = evidenceSources.length
+    ? `\n\nSources used this turn: ${evidenceSources.join(" · ")}\nVerified data: TMDB · IMDb (when present) · AI interpretation: Cinema Agent`
     : "";
 
   return `${SYSTEM_BASE}${catalogBlock}${spoiler}${agent}${tools}${sourceNote}`;

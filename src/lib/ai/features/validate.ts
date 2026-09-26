@@ -10,8 +10,9 @@ export type ValidatedFeature = FeatureDefinition & {
 
 function effectiveFlags(def: FeatureDefinition) {
   return {
-    hasApi: def.hasApi || def.hasService,
-    hasUi: def.hasUi || true,
+    // Generic runner: /api/ai/features/[slug]
+    hasApi: def.hasApi || Boolean(def.api) || def.hasService,
+    hasUi: def.hasUi || Boolean(def.href),
   };
 }
 

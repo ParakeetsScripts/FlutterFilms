@@ -2,17 +2,22 @@ import "server-only";
 
 import { buildMovieBriefing } from "../intelligence/briefing";
 import { buildCreativeAsset } from "../intelligence/creative";
-import { analyzeFranchise } from "../intelligence/franchise";
 import { buildInterviewProfile } from "../intelligence/interview";
 import { analyzePerson, findSimilarPeople } from "../intelligence/people";
 import { runRecommendation, type RecommendMode } from "../intelligence/recommendations";
 import { semanticSearch } from "../intelligence/semantic-search";
 import { groupPick, tasteIntersection, tasteMatchPercent } from "../intelligence/social";
-import { computeTasteDna } from "../intelligence/taste";
+import {
+  buildPersonalityCard,
+  buildTasteExplanations,
+  computeTasteDna,
+  rewatchCandidates,
+  tasteContradictions,
+} from "../intelligence/taste";
+import { analyzeFranchise, compareFranchises, findSpinOffs } from "../intelligence/franchise";
 import { buildWeeklyBrief } from "../intelligence/weekly-brief";
 import { searchSceneMemory } from "../intelligence/scene-memory";
 import { getMovieLocations } from "../intelligence/locations";
-import { compareFranchises, findSpinOffs } from "../intelligence/franchise";
 import { getRoomByCode } from "@/lib/social/rooms";
 import { getSharedWatchlist } from "@/lib/social/watchlists";
 import { vibeSearch } from "../intelligence/vibe-search";
@@ -286,16 +291,162 @@ export async function executeFeatureService(
       };
     }
 
-    if (def.slug === "taste-dna-2" || def.slug === "personality-card") {
-      const ids = (input.movieIds as number[]) ?? [...favorites, ...history];
+    if (
+      def.slug === "taste-dna-2" ||
+      def.slug === "personality-card" ||
+      def.slug === "movie-dna" ||
+      def.slug === "genre-map" ||
+      def.slug === "decade-map" ||
+      def.slug === "global-cinema-map" ||
+      def.slug === "favorite-patterns" ||
+      def.slug === "taste-contradiction" ||
+      def.slug === "rewatch-probability"
+    ) {
+      const ids = (input.movieIds as number[]) ?? [...favorites, ...history, ...watchlist];
       if (!ids.length) return insufficient(def, "Add favorites or watch history first.");
       const dna = await computeTasteDna(ids);
+      if (def.slug === "personality-card") {
+        return {
+          featureId: def.id,
+          slug: def.slug,
+          status: "success",
+          data: { dna, personality: buildPersonalityCard(dna) },
+          labels: [trustBadge("user"), trustBadge("metadata")],
+          ranAt: new Date().toISOString(),
+        };
+      }
+      if (def.slug === "genre-map") {
+        return {
+          featureId: def.id,
+          slug: def.slug,
+          status: "success",
+          data: { genres: dna.genres, unexplored: dna.unexploredGenres },
+          explanation: buildTasteExplanations(dna, favorites.length).slice(0, 3),
+          labels: dna.labels,
+          ranAt: new Date().toISOString(),
+        };
+      }
+      if (def.slug === "decade-map") {
+        return {
+          featureId: def.id,
+          slug: def.slug,
+          status: "success",
+          data: { decades: dna.decades },
+          labels: dna.labels,
+          ranAt: new Date().toISOString(),
+        };
+      }
+      if (def.slug === "global-cinema-map") {
+        return {
+          featureId: def.id,
+          slug: def.slug,
+          status: "success",
+          data: { countries: dna.countries, languages: dna.languages },
+          labels: dna.labels,
+          ranAt: new Date().toISOString(),
+        };
+      }
+      if (def.slug === "favorite-patterns") {
+        return {
+          featureId: def.id,
+          slug: def.slug,
+          status: "success",
+          data: { dna, patterns: buildTasteExplanations(dna, favorites.length) },
+          labels: dna.labels,
+          ranAt: new Date().toISOString(),
+        };
+      }
+      if (def.slug === "taste-contradiction") {
+        const contradictions = tasteContradictions(dna);
+        return {
+          featureId: def.id,
+          slug: def.slug,
+          status: contradictions.length ? "success" : "insufficient_data",
+          data: { contradictions, dna },
+          labels: [trustBadge("user"), trustBadge("ai_interpretation")],
+          explanation: contradictions.length ? contradictions : ["Not enough genre diversity to detect contradictions yet."],
+          ranAt: new Date().toISOString(),
+        };
+      }
+      if (def.slug === "rewatch-probability") {
+        const candidates = rewatchCandidates(history, favorites);
+        return {
+          featureId: def.id,
+          slug: def.slug,
+          status: candidates.length ? "success" : "insufficient_data",
+          data: { candidateIds: candidates, dna },
+          explanation: candidates.length
+            ? [`${candidates.length} titles in your history are also favorited — strong rewatch signals.`]
+            : ["No overlap between history and favorites yet."],
+          labels: [trustBadge("user")],
+          ranAt: new Date().toISOString(),
+        };
+      }
       return {
         featureId: def.id,
         slug: def.slug,
         status: "success",
         data: dna,
         labels: [trustBadge("user"), trustBadge("metadata")],
+        ranAt: new Date().toISOString(),
+      };
+    }
+
+    if (def.slug === "franchise-completion") {
+      const collectionId = Number(input.collectionId);
+      if (!collectionId) return insufficient(def, "Select a franchise (collection ID).");
+      const analysis = await analyzeFranchise(collectionId, history);
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: "success",
+        data: analysis,
+        explanation: [
+          `You've watched ${analysis.watchedCount} of ${analysis.movieCount} entries (${analysis.completionPercent}%).`,
+          analysis.entryRecommendation
+            ? `Next suggested: ${analysis.entryRecommendation.title}`
+            : "No unwatched entries in this collection.",
+        ],
+        labels: analysis.labels,
+        ranAt: new Date().toISOString(),
+      };
+    }
+
+    if (def.slug === "taste-evolution") {
+      if (history.length < 3) {
+        return insufficient(def, "Watch at least 3 movies to build a taste evolution timeline.");
+      }
+      const dna = await computeTasteDna([...favorites, ...history]);
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: "success",
+        data: {
+          note: "Evolution is inferred from your current library signals — timestamped watch history is limited.",
+          current: dna,
+          historyDepth: history.length,
+        },
+        labels: [trustBadge("user"), trustBadge("ai_interpretation")],
+        ranAt: new Date().toISOString(),
+      };
+    }
+
+    if (def.slug === "post-reflection") {
+      const movieId = Number(input.movieId);
+      if (!movieId) return insufficient(def, "Select a movie you watched.");
+      const briefing = await buildMovieBriefing(movieId, "light");
+      const prompts = [
+        "What moment stayed with you after the credits?",
+        "Which character choice surprised you most?",
+        "How did the ending change your reading of the opening?",
+      ];
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: "success",
+        data: { prompts, movieId: briefing?.movieId, movieTitle: briefing?.movieTitle, sections: briefing?.sections?.slice(0, 2) },
+        labels: [trustBadge("metadata"), trustBadge("ai_interpretation")],
+        explanation: ["Reflection prompts based on verified movie metadata — your answers are not stored unless you save them."],
         ranAt: new Date().toISOString(),
       };
     }
@@ -462,7 +613,15 @@ export async function executeFeatureService(
     }
 
     if (def.slug === "cinema-agent") {
-      return unavailable(def, "Open /copilot to use the Cinema Agent with tool calling.");
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: "success",
+        data: { redirect: "/copilot", message: "Cinema Agent runs in AI Copilot with grounded tool calling." },
+        labels: [trustBadge("metadata")],
+        explanation: ["Open /copilot for the full agent with TMDB catalog tools."],
+        ranAt: new Date().toISOString(),
+      };
     }
 
     return unavailable(def, "This capability is not implemented yet.");

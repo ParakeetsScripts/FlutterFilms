@@ -127,6 +127,9 @@ export async function POST(request: Request) {
       interviewProfile: body.interviewProfile,
       toolResults,
       sources,
+      favorites,
+      history,
+      watchlist,
     });
 
     if (!upstream.body) {

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { chatOllama } from "./adapters/ollama";
-import { chatOpenAiCompatible } from "./adapters/openai-compatible";
+import { chatOpenAiCloud, chatOpenAiCompatible } from "./adapters/openai-compatible";
 import { buildCopilotSystemPrompt } from "./copilot-context";
 import { getModelsWithHealth, recordModelUsage } from "./repository";
 import { routeAutoModel } from "./router";
@@ -16,6 +16,10 @@ export async function runCopilotChat(input: {
   interviewProfile?: import("./intelligence/agent").InterviewProfile;
   toolResults?: string;
   sources?: string[];
+  favorites?: number[];
+  history?: number[];
+  watchlist?: number[];
+  movieIds?: number[];
 }) {
   const userMessages = input.messages.filter((m) => m.role === "user");
   const lastUser = userMessages[userMessages.length - 1]?.content ?? "";
@@ -25,6 +29,10 @@ export async function runCopilotChat(input: {
     interviewProfile: input.interviewProfile,
     toolResults: input.toolResults,
     sources: input.sources,
+    favorites: input.favorites,
+    history: input.history,
+    watchlist: input.watchlist,
+    movieIds: input.movieIds,
   });
   const messages: ChatMessage[] = [{ role: "system", content: systemContent }, ...input.messages];
 
@@ -48,8 +56,10 @@ export async function runCopilotChat(input: {
     upstream = await chatOllama(model.apiModelId, messages, { stream: true });
   } else if (model.providerId === "local_openai") {
     upstream = await chatOpenAiCompatible(model.apiModelId, messages, { stream: true });
+  } else if (model.providerId === "openai") {
+    upstream = await chatOpenAiCloud(model.apiModelId, messages, { stream: true });
   } else {
-    throw new Error("Cloud models are not configured in this environment.");
+    throw new Error("Selected provider is not configured in this environment.");
   }
 
   recordModelUsage({

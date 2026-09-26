@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FEATURE_CATALOG } from "./catalog";
+import { executeFeatureService } from "./services";
 import { countByStatus, getValidatedFeatures, validateFeatureStatus } from "./validate";
 import { getFeatureDefinitions } from "./definitions";
 
@@ -65,5 +66,30 @@ describe("feature status validator", () => {
     const taste = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "taste-dna-2")!);
     expect(taste.notes).toContain("Requires authenticated session");
     expect(taste.blockers).not.toEqual(expect.arrayContaining([expect.stringMatching(/authenticated/i)]));
+  });
+
+  it("does not inflate LIVE count via forced UI flags", () => {
+    const counts = countByStatus();
+    expect(counts.live).toBeLessThan(50);
+  });
+
+  it("wired taste features do not return not-implemented", async () => {
+    const slugs = [
+      "movie-dna",
+      "genre-map",
+      "decade-map",
+      "global-cinema-map",
+      "favorite-patterns",
+      "taste-contradiction",
+      "rewatch-probability",
+      "taste-evolution",
+      "cinema-agent",
+    ];
+    for (const slug of slugs) {
+      const def = getFeatureDefinitions().find((f) => f.slug === slug)!;
+      const result = await executeFeatureService(def, {}, { favorites: [550, 680], history: [550] });
+      expect(String(result.error ?? "")).not.toMatch(/not implemented/i);
+      expect(["success", "insufficient_data", "unavailable"]).toContain(result.status);
+    }
   });
 });

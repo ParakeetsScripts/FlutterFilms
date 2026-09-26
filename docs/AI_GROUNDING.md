@@ -38,11 +38,17 @@ Each `MovieEvidence` includes:
 
 ```
 user message
-  → buildEvidencePacket() [catalog + taste]
-  → runAgentTools() [deterministic tool router]
+  → runCinemaAgent() [canonical orchestrator]
+      → resolveEntities() [person/movie/franchise + session refs]
+      → planAgentTools() [deterministic intent router]
+      → runAgentTools() [TMDB, catalog, mutations, memory, rooms]
+      → buildEvidencePacket() [TMDB + IMDb + taste]
+      → listAgentMemories() [account DB when signed in]
   → buildCopilotSystemPrompt() [verified data authoritative]
   → model (Ollama / local OpenAI-compatible / OpenAI cloud when configured)
 ```
+
+See `docs/AGENT_ARCHITECTURE.md` for tool routing, mutations, and structured actions.
 
 ## Fact vs inference
 

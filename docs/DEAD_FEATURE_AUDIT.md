@@ -20,10 +20,20 @@ This audit traced routes, APIs, feature registry entries, AI services, TMDB/IMDb
 
 - 16 features remain **planned** (no service).
 - Chat-heavy features (`spoiler-shield`, `ending-explanation`, etc.) redirect to Copilot — require connected model.
-- Semantic search is **metadata/regex catalog search**, not embedding vectors.
-- Creative image features produce **SVG concept art**, not generative model output.
-- `/videos` is a shell when no video provider is configured.
-- Agent watchlist/community tools still return `client_action_required` stubs.
+- Semantic search is **metadata/regex catalog search**, not embedding vectors (UI: “Smart Catalog Search”).
+- Creative image features produce **SVG concept art** (“Poster Concept Builder”), not diffusion models.
+- `/videos` is unavailable when no video provider is configured.
+- Anthropic/Google listed in registry but have no runtime adapters.
+- True vector embeddings, generative video, and full Playwright interaction crawl remain open.
+
+**Third pass (2026-09-26) — agent & grounding:**
+
+- Canonical `runCinemaAgent()` orchestrator shared by Copilot + `cinema-agent` feature.
+- Watchlist add/remove, recommendation feedback, and community room tools execute server-side (auth required).
+- Account-persistent memory via `agent_memories` + `/api/user/memory`; `getUserTasteContext()` aggregates taste signals.
+- IMDb sync diagnostics (`scanned`, `matches`, `missing`, etc.).
+- Release dashboard probes OpenAI/Ollama reachability (not env-var-only).
+- Community group picker uses movie search instead of raw TMDB ID paste.
 
 ---
 

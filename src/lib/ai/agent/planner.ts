@@ -1,3 +1,4 @@
+import type { ResolvedEntities } from "./entities";
 import type { AgentToolName } from "./tools";
 
 export type PlannedToolCall = {
@@ -6,11 +7,36 @@ export type PlannedToolCall = {
   label: string;
 };
 
-export function planAgentTools(message: string): PlannedToolCall[] {
+export function planAgentTools(message: string, entities: ResolvedEntities = {}): PlannedToolCall[] {
   const text = message.trim();
   const lower = text.toLowerCase();
   const planned: PlannedToolCall[] = [];
   const idMatch = text.match(/\btmdb\s*(?:id\s*)?(\d{3,})\b/i) ?? text.match(/\bmovie\s*#?(\d{3,})\b/i);
+
+  if (entities.personId) {
+    planned.push({ name: "getPerson", args: { personId: entities.personId }, label: "Loading person filmography…" });
+  }
+  if (entities.collectionId) {
+    planned.push({
+      name: "getFranchise",
+      args: { collectionId: entities.collectionId },
+      label: "Loading franchise collection…",
+    });
+  }
+  if (entities.movieId && !idMatch) {
+    planned.push({ name: "getMovie", args: { movieId: entities.movieId }, label: "Loading movie details…" });
+  }
+
+  if (/\bremember\b|\bi love\b|\bi like\b/i.test(lower)) {
+    planned.push({ name: "getMemories", args: {}, label: "Loading your saved preferences…" });
+  }
+  if (/\bwhat (?:do|movies) i like|my preferences|what do you know about me\b/i.test(lower)) {
+    planned.push({ name: "getMemories", args: {}, label: "Recalling your taste memories…" });
+  }
+  if (/\bget feature\b|\bintelligence feature\b/i.test(lower)) {
+    const slugMatch = text.match(/\b([a-z0-9-]{3,})\b/);
+    if (slugMatch) planned.push({ name: "getFeature", args: { slug: slugMatch[1] }, label: "Loading feature…" });
+  }
 
   if (/marathon|weekend\b/.test(lower)) {
     planned.push({ name: "buildMarathon", args: {}, label: "Building weekend marathon…" });
@@ -55,14 +81,17 @@ export function planAgentTools(message: string): PlannedToolCall[] {
     });
   }
 
-  if (/add to watchlist|save to watchlist|put on watchlist\b/.test(lower)) {
-    const movieId = idMatch ? Number(idMatch[1]) : undefined;
+  if (/\badd\b.*\bwatchlist\b|\bsave\b.*\bwatchlist\b|\bput\b.*\bwatchlist\b/.test(lower)) {
+    const movieId = idMatch ? Number(idMatch[1]) : entities.movieId;
     if (movieId) {
       planned.push({ name: "createWatchlistEntry", args: { movieId }, label: "Adding to watchlist…" });
     }
   }
-  if (/remove from watchlist|delete from watchlist\b/.test(lower) && idMatch) {
-    planned.push({ name: "removeWatchlistEntry", args: { movieId: Number(idMatch[1]) }, label: "Removing from watchlist…" });
+  if (/\bremove\b.*\bwatchlist\b|\bdelete\b.*\bwatchlist\b/.test(lower)) {
+    const movieId = idMatch ? Number(idMatch[1]) : entities.movieId;
+    if (movieId) {
+      planned.push({ name: "removeWatchlistEntry", args: { movieId }, label: "Removing from watchlist…" });
+    }
   }
   if (/more like this|less like this|not interested\b/.test(lower) && idMatch) {
     const feedback = /less like|not interested/.test(lower) ? "less_like_this" : "more_like_this";
@@ -142,4 +171,6 @@ export const TOOL_SOURCE_LABELS: Record<AgentToolName, string[]> = {
   createMovieNight: ["Your lists", "AI graphic"],
   createNewsletter: ["TMDB trending", "Catalog updates"],
   getCommunityRoom: ["Shared room data"],
+  getMemories: ["Flutter Films user memory"],
+  storeMemory: ["Flutter Films user memory"],
 };

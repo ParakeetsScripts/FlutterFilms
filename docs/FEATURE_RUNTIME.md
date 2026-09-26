@@ -41,11 +41,13 @@ Stub detection: `isStubFeatureResult()` in `capability-audit.ts`
 
 ## Cinema Agent
 
-`cinema-agent` slug executes the **same** tool + evidence path as Copilot:
+`cinema-agent` slug and `POST /api/ai/chat` both call **`runCinemaAgent()`** (`src/lib/ai/agent/orchestrator.ts`):
 
-- `runAgentTools()`
-- `buildEvidencePacket()`
-- Copilot UI at `/copilot` for generative replies
+- Entity resolution + session context (`resolveEntities`, `AgentSessionContext`)
+- Deterministic tool planning (`planAgentTools`) with LLM optional in Copilot only
+- Real mutations when authenticated (`createWatchlistEntry`, `removeWatchlistEntry`, `createRecommendationFeedback`)
+- Account memory via `agent_memories` (non-UUID fixture IDs skip DB gracefully in tests)
+- Copilot UI at `/copilot` for generative natural-language replies when a model is connected
 
 ## Taste features
 

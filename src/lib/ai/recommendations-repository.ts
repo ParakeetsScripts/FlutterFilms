@@ -50,6 +50,22 @@ export async function recordRecommendationFeedback(input: {
   );
 }
 
+export async function listRecommendationFeedback(userId: string, limit = 100) {
+  const db = await getDatabase();
+  const rows = await db.all<{ movie_id: number; feedback: string }>(
+    "SELECT movie_id, feedback FROM recommendation_feedback WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+    [userId, limit],
+  );
+  return rows.map((r) => ({ movieId: r.movie_id, feedback: r.feedback }));
+}
+
+export async function listNegativeFeedbackMovieIds(userId: string): Promise<number[]> {
+  const rows = await listRecommendationFeedback(userId, 200);
+  return rows
+    .filter((r) => r.feedback === "less_like_this" || r.feedback === "not_interested")
+    .map((r) => r.movieId);
+}
+
 export async function markRecommendationEngagement(
   eventId: string,
   field: "clicked" | "saved" | "watched" | "dismissed",

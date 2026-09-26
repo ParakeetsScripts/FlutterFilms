@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isDatabaseUserId } from "@/lib/user/ids";
 import { listTasteSignals } from "@/lib/user/taste-repository";
 import { computeTasteDna } from "../intelligence/taste";
 import type { UserTasteEvidence } from "./types";
@@ -17,7 +18,7 @@ export async function getUserTasteEvidence(input: {
   if (!ids.length && !input.userId) return null;
 
   const dna = ids.length ? await computeTasteDna(ids) : null;
-  const signals = input.userId ? await listTasteSignals(input.userId) : [];
+  const signals = isDatabaseUserId(input.userId) ? await listTasteSignals(input.userId!) : [];
 
   const favoritePeople = signals
     .filter((s) => s.signalKey === "favorite_person")

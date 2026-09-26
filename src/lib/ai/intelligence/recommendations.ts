@@ -28,6 +28,7 @@ export type RecommendContext = {
   watchlist: number[];
   favorites: number[];
   history: number[];
+  negativeFeedbackIds?: number[];
   mode: RecommendMode;
   maxRuntime?: number;
   energy?: "low" | "balanced" | "high";
@@ -94,7 +95,7 @@ function brainFilters(brain?: string) {
 
 export async function runRecommendation(ctx: RecommendContext) {
   const asOf = ctx.asOf ?? new Date();
-  const exclude = new Set([...ctx.history, ...(ctx.excludeIds ?? [])]);
+  const exclude = new Set([...ctx.history, ...(ctx.excludeIds ?? []), ...(ctx.negativeFeedbackIds ?? [])]);
   const hasHistory = ctx.history.length > 0;
   let movies: MovieSummary[] = [];
   let reason = "";

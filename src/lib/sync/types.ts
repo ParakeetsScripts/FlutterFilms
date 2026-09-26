@@ -24,6 +24,13 @@ export type MetadataChange = {
 
 export type SyncJobStatus = "RUNNING" | "SUCCESS" | "FAILED" | "SKIPPED";
 
+export type SyncJobDiagnostics = {
+  catalogWithImdbIds?: number;
+  ratingsMatched?: number;
+  ratingsMissing?: number;
+  basicsImported?: boolean;
+};
+
 export type SyncJobResult = {
   id: string;
   source: SourceName | "providers";
@@ -36,6 +43,7 @@ export type SyncJobResult = {
   error?: string;
   sourceVersion?: string;
   durationMs: number;
+  diagnostics?: SyncJobDiagnostics;
 };
 
 export type SourceHealthStatus = "HEALTHY" | "DEGRADED" | "FAILED" | "STALE";

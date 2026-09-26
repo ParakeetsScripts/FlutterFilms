@@ -7,8 +7,7 @@ import { analyzePerson, findSimilarPeople } from "../intelligence/people";
 import { runRecommendation, type RecommendMode } from "../intelligence/recommendations";
 import { semanticSearch } from "../intelligence/semantic-search";
 import { groupPick, tasteIntersection, tasteMatchPercent } from "../intelligence/social";
-import { runAgentTools } from "../agent/run";
-import { buildEvidencePacket } from "../evidence";
+import { runCinemaAgent } from "../agent/orchestrator";
 import {
   buildMovieDnaProfile,
   buildPersonalityCard,
@@ -678,23 +677,28 @@ export async function executeFeatureService(
 
     if (def.slug === "cinema-agent") {
       const message = String(input.message ?? input.query ?? "Help me discover a movie.");
-      const [agent, packet] = await Promise.all([
-        runAgentTools(message, { userId, watchlist, favorites, history }),
-        buildEvidencePacket({ query: message, userId, favorites, history, watchlist, movieIds: input.movieIds as number[] }),
-      ]);
+      const agent = await runCinemaAgent({
+        message,
+        userId,
+        watchlist,
+        favorites,
+        history,
+        sessionContext: (input.sessionContext as import("../agent/session-context").AgentSessionContext) ?? {},
+      });
       return {
         featureId: def.id,
         slug: def.slug,
         status: "success",
         data: {
-          tools: agent.results,
-          evidence: packet,
+          tools: agent.tools,
+          evidence: agent.evidence,
+          actions: agent.actions,
+          sessionContext: agent.sessionContext,
           copilotPath: "/copilot",
         },
         labels: [trustBadge("metadata"), trustBadge("user")],
         explanation: [
           ...agent.sources,
-          ...packet.sourcesUsed,
           "Generative natural-language reply continues in Copilot when a model is connected.",
         ],
         ranAt: new Date().toISOString(),

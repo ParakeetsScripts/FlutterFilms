@@ -13,7 +13,9 @@ import { buildCreativeAsset } from "../intelligence/creative";
 import { buildWeeklyBrief } from "../intelligence/weekly-brief";
 import { getWatchProviders } from "@/lib/tmdb/watch-providers";
 import { getIntelligenceFeature } from "../features/registry";
-import { recordRecommendationFeedback } from "../recommendations-repository";
+import { listNegativeFeedbackMovieIds, recordRecommendationFeedback } from "../recommendations-repository";
+import type { ResolvedEntities } from "./entities";
+import { listAgentMemories, memoriesToAgentShape } from "@/lib/user/agent-memory-service";
 import { addMovieToWatchlist, removeMovieFromWatchlist } from "@/lib/user/watchlist-mutations";
 import { getRoomByCode } from "@/lib/social/rooms";
 
@@ -22,6 +24,7 @@ export type AgentToolContext = {
   watchlist?: number[];
   favorites?: number[];
   history?: number[];
+  resolvedEntities?: ResolvedEntities;
 };
 
 export const AGENT_TOOLS = [
@@ -49,6 +52,8 @@ export const AGENT_TOOLS = [
   "createMovieNight",
   "createNewsletter",
   "getCommunityRoom",
+  "getMemories",
+  "storeMemory",
 ] as const;
 
 export type AgentToolName = (typeof AGENT_TOOLS)[number];
@@ -75,14 +80,17 @@ export async function invokeAgentTool(
     case "getCollection":
     case "getFranchise":
       return getMovieCollection(Number(args.collectionId));
-    case "recommendMovies":
+    case "recommendMovies": {
+      const negativeFeedbackIds = ctx.userId ? await listNegativeFeedbackMovieIds(ctx.userId) : [];
       return runRecommendation({
         mode: (args.mode as import("../intelligence/recommendations").RecommendMode) ?? "instant",
         watchlist,
         favorites,
         history,
+        negativeFeedbackIds,
         maxRuntime: args.maxRuntime ? Number(args.maxRuntime) : undefined,
       });
+    }
     case "searchByVibe":
       return vibeSearch(String(args.query ?? ""));
     case "searchSemanticCatalog":
@@ -157,6 +165,19 @@ export async function invokeAgentTool(
       if (!code) return { error: "room code required" };
       const room = await getRoomByCode(code);
       return room ?? { status: "unavailable", message: "Room not found." };
+    }
+    case "getMemories": {
+      if (!ctx.userId) return { status: "unavailable", message: "Sign in to access persistent memory." };
+      const memories = await listAgentMemories(ctx.userId);
+      return { memories, shaped: memoriesToAgentShape(memories) };
+    }
+    case "storeMemory": {
+      if (!ctx.userId) return { status: "unavailable", message: "Sign in to save memory." };
+      const content = String(args.content ?? "");
+      if (!content.trim()) return { error: "content required" };
+      const { addAgentMemory } = await import("@/lib/user/agent-memory-service");
+      const id = await addAgentMemory(ctx.userId, "preferences", content.trim(), "user");
+      return { status: "success", id, content: content.trim() };
     }
     default:
       return { error: `Unknown tool: ${name}` };

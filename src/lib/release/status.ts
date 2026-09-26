@@ -61,19 +61,55 @@ export async function getReleaseChecks(): Promise<ReleaseCheck[]> {
 
   const aiLocal = env("OLLAMA_BASE_URL") || env("AI_LOCAL_ENDPOINT");
   const aiCloud = env("OPENAI_API_KEY") || env("AI_OPENAI_API_KEY");
+  let openAiReachable = false;
+  if (aiCloud) {
+    try {
+      const base = env("OPENAI_BASE_URL") || "https://api.openai.com/v1";
+      const response = await fetch(`${base}/models`, {
+        headers: { Authorization: `Bearer ${aiCloud}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      openAiReachable = response.ok;
+    } catch {
+      openAiReachable = false;
+    }
+  }
   checks.push({
     id: "ai",
     label: "AI (cloud OpenAI)",
-    status: aiCloud ? "READY" : "WARNING",
-    detail: aiCloud
-      ? "OPENAI_API_KEY set — OpenAI adapter path available when an OpenAI model is enabled."
-      : "Not configured — Copilot uses local models only.",
+    status: !aiCloud ? "WARNING" : openAiReachable ? "READY" : "ERROR",
+    detail: !aiCloud
+      ? "Not configured — Copilot uses local models only."
+      : openAiReachable
+        ? "Configured and reachable (models endpoint OK)."
+        : "OPENAI_API_KEY set but API unreachable.",
   });
+
+  let localReachable = false;
+  if (aiLocal) {
+    try {
+      const { probeOllamaLatency } = await import("@/lib/ai/adapters/ollama");
+      await probeOllamaLatency();
+      localReachable = true;
+    } catch {
+      try {
+        const { probeOpenAiCompatibleLatency } = await import("@/lib/ai/adapters/openai-compatible");
+        await probeOpenAiCompatibleLatency();
+        localReachable = true;
+      } catch {
+        localReachable = false;
+      }
+    }
+  }
   checks.push({
     id: "local-ai",
     label: "Local AI",
-    status: aiLocal ? "READY" : "WARNING",
-    detail: aiLocal ? "Ollama/local endpoint configured." : "Optional — no local model connected.",
+    status: !aiLocal ? "WARNING" : localReachable ? "READY" : "ERROR",
+    detail: !aiLocal
+      ? "Optional — no local endpoint configured."
+      : localReachable
+        ? "Local endpoint configured and reachable."
+        : "Endpoint configured but unreachable.",
   });
 
   checks.push({

@@ -5,32 +5,55 @@ import { TrustBadge } from "@/components/ai/TrustBadge";
 import { useUserLibrary } from "@/components/providers/UserLibraryProvider";
 import type { MovieSummary } from "@/lib/tmdb/types";
 import type { TrustKind } from "@/lib/ai/trust";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+
+type SearchHit = { id: number; title: string; year?: number | null; posterPath?: string | null };
 
 export function CommunityHub() {
   const { watchlist, favorites, history } = useUserLibrary();
-  const [guestIds, setGuestIds] = useState("");
+  const [guestSearch, setGuestSearch] = useState("");
+  const [guestHits, setGuestHits] = useState<SearchHit[]>([]);
+  const [guestSelected, setGuestSelected] = useState<SearchHit[]>([]);
   const [matchPercent, setMatchPercent] = useState<number | null>(null);
   const [sharedGenres, setSharedGenres] = useState<string[]>([]);
   const [pick, setPick] = useState<MovieSummary | null>(null);
   const [alternates, setAlternates] = useState<MovieSummary[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   const myProfile = {
     label: "You",
     movieIds: [...new Set([...watchlist, ...favorites, ...history])],
   };
 
-  async function runGroupPick() {
-    setLoading(true);
-    const guestMovieIds = guestIds
-      .split(",")
-      .map((id) => Number(id.trim()))
-      .filter((id) => Number.isFinite(id));
+  const searchGuestMovies = useCallback(async () => {
+    const q = guestSearch.trim();
+    if (q.length < 2) return;
+    setSearching(true);
+    try {
+      const r = await fetch(`/api/onboarding/search?q=${encodeURIComponent(q)}&type=movie`);
+      const data = (await r.json()) as { results?: SearchHit[] };
+      setGuestHits(data.results ?? []);
+    } finally {
+      setSearching(false);
+    }
+  }, [guestSearch]);
 
+  function addGuestMovie(hit: SearchHit) {
+    if (guestSelected.some((m) => m.id === hit.id)) return;
+    setGuestSelected((prev) => [...prev, hit].slice(0, 20));
+  }
+
+  function removeGuestMovie(id: number) {
+    setGuestSelected((prev) => prev.filter((m) => m.id !== id));
+  }
+
+  async function runGroupPick() {
+    if (!guestSelected.length) return;
+    setLoading(true);
     const profiles = [
       myProfile,
-      { label: "Guest", movieIds: guestMovieIds },
+      { label: "Guest", movieIds: guestSelected.map((m) => m.id) },
     ];
 
     const [pickRes, matchRes, intersectionRes] = await Promise.all([
@@ -63,19 +86,52 @@ export function CommunityHub() {
       <section className="ai-usage-card">
         <h2 className="section-title">AI Group Picker</h2>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          Enter comma-separated TMDB movie IDs for a second taste profile (demo — full friend profiles coming with accounts).
+          Build a second taste profile by searching and selecting movies — no TMDB IDs required.
         </p>
+
         <div className="mt-4 flex flex-wrap gap-3">
           <input
-            value={guestIds}
-            onChange={(e) => setGuestIds(e.target.value)}
-            placeholder="e.g. 550, 13, 680"
+            value={guestSearch}
+            onChange={(e) => setGuestSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && searchGuestMovies()}
+            placeholder="Search movies for guest profile…"
             className="flex-1 min-w-[200px] rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
           />
-          <button type="button" className="btn btn-primary" onClick={runGroupPick} disabled={loading}>
+          <button type="button" className="btn btn-secondary" onClick={searchGuestMovies} disabled={searching}>
+            {searching ? "Searching…" : "Search"}
+          </button>
+          <button type="button" className="btn btn-primary" onClick={runGroupPick} disabled={loading || !guestSelected.length}>
             {loading ? "Picking…" : "Pick for group"}
           </button>
         </div>
+
+        {guestHits.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {guestHits.slice(0, 8).map((hit) => (
+              <button
+                key={hit.id}
+                type="button"
+                className="filter-chip"
+                onClick={() => addGuestMovie(hit)}
+              >
+                + {hit.title}{hit.year ? ` (${hit.year})` : ""}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {guestSelected.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-2">Guest profile ({guestSelected.length} movies)</p>
+            <div className="flex flex-wrap gap-2">
+              {guestSelected.map((m) => (
+                <button key={m.id} type="button" className="filter-chip" onClick={() => removeGuestMovie(m.id)}>
+                  {m.title} ×
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {matchPercent != null && (
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -101,9 +157,10 @@ export function CommunityHub() {
       </section>
 
       <section className="ai-usage-card">
-        <h2 className="section-title">Social features roadmap</h2>
+        <h2 className="section-title">Movie rooms & shared lists</h2>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          Movie rooms, spoiler-protected discussions, and shared watchlists are architected in the intelligence registry — wire to accounts next.
+          Create a room from <a href="/rooms" className="underline">Rooms</a> or collaborate on{" "}
+          <a href="/watchlists" className="underline">shared watchlists</a>. Cinema Agent can inspect room state by code.
         </p>
       </section>
     </div>

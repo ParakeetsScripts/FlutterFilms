@@ -1,11 +1,13 @@
 import "server-only";
 
 import { planAgentTools, TOOL_SOURCE_LABELS, type PlannedToolCall } from "./planner";
+export type { PlannedToolCall } from "./planner";
 import { invokeAgentTool, type AgentToolContext, type AgentToolName } from "./tools";
 
 export type ToolRunResult = {
   name: AgentToolName;
   label: string;
+  args: Record<string, unknown>;
   result: unknown;
   sources: string[];
   error?: string;
@@ -66,8 +68,9 @@ export async function runAgentTools(
   message: string,
   ctx: AgentToolContext,
   onProgress?: (event: { type: "tool_start" | "tool_end"; name: AgentToolName; label: string }) => void,
+  plannedOverride?: PlannedToolCall[],
 ): Promise<{ results: ToolRunResult[]; promptBlock: string; sources: string[] }> {
-  const planned = planAgentTools(message);
+  const planned = plannedOverride ?? planAgentTools(message, ctx.resolvedEntities);
   const results: ToolRunResult[] = [];
   const sources = new Set<string>();
 
@@ -79,6 +82,7 @@ export async function runAgentTools(
       results.push({
         name: call.name,
         label: call.label,
+        args: call.args,
         result,
         sources: TOOL_SOURCE_LABELS[call.name],
       });
@@ -86,6 +90,7 @@ export async function runAgentTools(
       results.push({
         name: call.name,
         label: call.label,
+        args: call.args,
         result: null,
         sources: TOOL_SOURCE_LABELS[call.name],
         error: error instanceof Error ? error.message : "Tool failed",

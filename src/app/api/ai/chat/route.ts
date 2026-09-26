@@ -1,5 +1,5 @@
 import { rateLimit, clientKey } from "@/lib/api";
-import { runAgentTools } from "@/lib/ai/agent/run";
+import { runCinemaAgent } from "@/lib/ai/agent/orchestrator";
 import { runCopilotChat } from "@/lib/ai/chat";
 import type { ChatMessage } from "@/lib/ai/types";
 import { getSessionUser } from "@/lib/auth/session";
@@ -84,6 +84,7 @@ export async function POST(request: Request) {
       favorites?: number[];
       history?: number[];
       streamFormat?: "text" | "ndjson";
+      sessionContext?: import("@/lib/ai/agent/session-context").AgentSessionContext;
     };
     const messages = body.messages ?? [];
     if (!messages.length) {
@@ -107,15 +108,21 @@ export async function POST(request: Request) {
     let toolResults = "";
     let sources: string[] = [];
     const toolEvents: Array<{ type: string; name?: string; label?: string }> = [];
+    let agentMemory = body.agentMemory;
 
     if (useTools && lastUser.trim()) {
-      const agentRun = await runAgentTools(
-        lastUser,
-        { userId: session?.id, watchlist, favorites, history },
-        (event) => toolEvents.push(event),
-      );
-      toolResults = agentRun.promptBlock;
+      const agentRun = await runCinemaAgent({
+        message: lastUser,
+        userId: session?.id,
+        watchlist,
+        favorites,
+        history,
+        sessionContext: body.sessionContext,
+        onToolProgress: (event) => toolEvents.push(event),
+      });
+      toolResults = `${agentRun.promptBlock}\n\n${agentRun.memoryBlock}`.trim();
       sources = agentRun.sources;
+      agentMemory = agentRun.agentMemory;
     }
 
     const { upstream, model, routeReason } = await runCopilotChat({
@@ -123,7 +130,7 @@ export async function POST(request: Request) {
       modelId: body.modelId,
       privateMode: body.privateMode,
       spoilerLevel: body.spoilerLevel,
-      agentMemory: body.agentMemory,
+      agentMemory,
       interviewProfile: body.interviewProfile,
       toolResults,
       sources,

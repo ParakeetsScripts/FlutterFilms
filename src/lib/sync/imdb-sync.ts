@@ -96,10 +96,12 @@ export async function runImdbSync(): Promise<SyncJobResult> {
       runtime: number | null;
     }>("SELECT tmdb_id, imdb_id, imdb_rating, imdb_vote_count, runtime FROM movies WHERE imdb_id IS NOT NULL");
 
+    result.diagnostics = { catalogWithImdbIds: linked.length, ratingsMatched: 0, ratingsMissing: 0 };
+
     if (!linked.length) {
       result.durationMs = Date.now() - started;
       result.error =
-        "IMDb sync completed with 0 matches — catalog has no movies with imdb_id yet. Run TMDB sync first.";
+        "IMDb sync completed with 0 catalog matches — no movies with imdb_id. Run TMDB sync first.";
       await finishSyncJob(result);
       return result;
     }
@@ -112,6 +114,7 @@ export async function runImdbSync(): Promise<SyncJobResult> {
     if (process.env.IMDB_IMPORT_BASICS === "true") {
       const basicsTsv = await downloadTsv(IMDB_BASICS_URL);
       basicsRuntimes = parseBasicsRuntime(basicsTsv, imdbIds);
+      result.diagnostics!.basicsImported = true;
     }
 
     const now = new Date().toISOString();
@@ -120,8 +123,10 @@ export async function runImdbSync(): Promise<SyncJobResult> {
       const ratingRow = ratings.get(row.imdb_id);
       if (!ratingRow) {
         result.recordsUnchanged += 1;
+        result.diagnostics!.ratingsMissing = (result.diagnostics!.ratingsMissing ?? 0) + 1;
         continue;
       }
+      result.diagnostics!.ratingsMatched = (result.diagnostics!.ratingsMatched ?? 0) + 1;
 
       const imdbRuntime = basicsRuntimes.get(row.imdb_id) ?? null;
       const ratingChanged =

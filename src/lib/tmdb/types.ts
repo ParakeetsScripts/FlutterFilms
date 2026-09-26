@@ -175,6 +175,10 @@ export type DiscoverQuery = {
   year?: number;
   yearGte?: number;
   yearLte?: number;
+  releaseDateGte?: string;
+  releaseDateLte?: string;
+  runtimeGte?: number;
+  runtimeLte?: number;
   ratingGte?: number;
   ratingLte?: number;
   language?: string;

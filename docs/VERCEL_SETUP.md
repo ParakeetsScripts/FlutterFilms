@@ -15,6 +15,8 @@
 | `CRON_SECRET` | Set (production, preview) |
 | `AI_ADMIN_SECRET` | Set (production, preview) |
 | `NEXT_PUBLIC_SITE_URL` | `https://flutter-films.vercel.app` |
+| `GOOGLE_CLIENT_ID` | Set (production, preview) |
+| `GOOGLE_CLIENT_SECRET` | Set (production, preview) — rotate if exposed |
 | Postgres migrations | Applied (V1–V8) |
 | GitHub Actions deploy | `.github/workflows/deploy.yml` on `master` |
 | GitHub secrets | `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` |
@@ -40,6 +42,14 @@ To finish native integration later:
 curl -H "Authorization: Bearer $CRON_SECRET" \
   https://flutter-films.vercel.app/api/cron/tmdb-sync
 ```
+
+## Google OAuth
+
+Add authorized redirect URI in Google Cloud Console:
+
+`https://flutter-films.vercel.app/api/auth/google/callback`
+
+The OAuth app is in **testing** mode until published — only test users on the consent screen can sign in.
 
 ## Local production env
 

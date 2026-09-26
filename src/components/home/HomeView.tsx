@@ -4,6 +4,7 @@ import { BecauseYouWatchedSection } from "@/components/home/BecauseYouWatchedSec
 import { HeroSearch } from "@/components/home/HeroSearch";
 import { ContinueWatchingRow } from "@/components/home/ContinueWatchingRow";
 import { MovieRow } from "@/components/movie/MovieRow";
+import { ScrollReveal } from "@/components/scrollytelling/ScrollReveal";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useUserLibrary } from "@/components/providers/UserLibraryProvider";
 import type { HomeData } from "@/lib/home";
@@ -103,7 +104,7 @@ export function HomeView({ data }: { data: HomeData; defaultPlayback?: { label: 
       {ready && <ContinueWatchingRow />}
       {ready && !settings.disablePersonalizedRows ? <BecauseYouWatchedSection /> : null}
       {curatedSections.map((section) => (
-        <section key={section.id} className="home-section">
+        <ScrollReveal key={section.id} sectionId={section.id} className="home-section">
           <div className="home-section__header">
             <div>
               <h2 className="section-title">{section.title}</h2>
@@ -113,8 +114,8 @@ export function HomeView({ data }: { data: HomeData; defaultPlayback?: { label: 
               <Link href={section.href} className="btn btn-ghost text-sm shrink-0">Open</Link>
             ) : null}
           </div>
-          <MovieRow title="" movies={section.movies} bare />
-        </section>
+          <MovieRow title="" movies={section.movies} bare railId={`home-${section.id}`} />
+        </ScrollReveal>
       ))}
     </div>
   );

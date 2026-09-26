@@ -12,6 +12,8 @@ type TonightResult = {
   primary: MovieSummary;
   alternates: MovieSummary[];
   explanation: string[];
+  matched?: string[];
+  notUsed?: string[];
   runtime?: number | null;
   genres: string[];
   ratings: { tmdb?: number | null; imdb?: string | null };
@@ -130,10 +132,28 @@ export function TonightPicker() {
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 {result.explanation.map((r) => <li key={r}>{r}</li>)}
               </ul>
+              {result.matched?.length ? (
+                <div className="mt-4">
+                  <h4 className="font-medium text-[var(--text-primary)]">Matched</h4>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    {result.matched.map((r) => <li key={r}>{r}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+              {result.notUsed?.length ? (
+                <div className="mt-4">
+                  <h4 className="font-medium text-[var(--text-primary)]">Not verified</h4>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-[var(--text-muted)]">
+                    {result.notUsed.map((r) => <li key={r}>{r}</li>)}
+                  </ul>
+                </div>
+              ) : null}
             </div>
             <div>
               <h3 className="font-medium text-[var(--text-primary)]">Details</h3>
-              <p className="mt-2">Runtime: {result.runtime ?? "Verify on title page"} min</p>
+              <p className="mt-2">
+                Runtime: {result.runtime != null ? `${result.runtime} min` : "Unknown"}
+              </p>
               <p>Genres: {result.genres.join(", ") || "—"}</p>
               <p>TMDB: {result.ratings.tmdb ?? "n/a"} · IMDb: {result.ratings.imdb ?? "n/a"}</p>
               <p className="mt-2">Where to watch: {result.watchProviders.join(", ")}</p>

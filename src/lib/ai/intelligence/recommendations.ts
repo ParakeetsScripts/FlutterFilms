@@ -1,5 +1,6 @@
 import "server-only";
 
+import { filterWatchableTonight, todayIso } from "@/lib/movies/eligibility";
 import { discoverMovies } from "@/lib/tmdb/discover";
 import { getRecommendations } from "@/lib/tmdb/recommendations";
 import { getTrendingMovies } from "@/lib/tmdb/movies";
@@ -34,6 +35,9 @@ export type RecommendContext = {
   hourOfDay?: number;
   excludeIds?: number[];
   groupTasteIds?: number[][];
+  language?: string;
+  genreIds?: number[];
+  asOf?: Date;
 };
 
 function pick<T>(items: T[]): T | null {
@@ -45,16 +49,34 @@ function dedupe(movies: MovieSummary[], exclude: Set<number>) {
   return movies.filter((m) => !exclude.has(m.id));
 }
 
-async function poolFromHistory(history: number[], favorites: number[]): Promise<MovieSummary[]> {
+function watchable(
+  movies: MovieSummary[],
+  ctx: RecommendContext,
+): MovieSummary[] {
+  return filterWatchableTonight(movies, { asOf: ctx.asOf });
+}
+
+function discoverBase(ctx: RecommendContext) {
+  const asOf = ctx.asOf ?? new Date();
+  return {
+    releaseDateLte: todayIso(asOf),
+    language: ctx.language,
+    genre: ctx.genreIds?.[0],
+    runtimeLte: ctx.maxRuntime,
+  };
+}
+
+async function poolFromHistory(history: number[], favorites: number[], ctx: RecommendContext): Promise<MovieSummary[]> {
   const anchor = history[0] ?? favorites[0];
+  let movies: MovieSummary[] = [];
   if (!anchor) {
     const trending = await getTrendingMovies("day");
-    return trending.results;
+    movies = trending.results;
+  } else {
+    const recs = await getRecommendations(anchor).catch(() => ({ results: [] }));
+    movies = recs.results.length ? recs.results : (await getTrendingMovies("day")).results;
   }
-  const recs = await getRecommendations(anchor).catch(() => ({ results: [] }));
-  if (recs.results.length) return recs.results;
-  const trending = await getTrendingMovies("day");
-  return trending.results;
+  return watchable(movies, ctx);
 }
 
 function energyFilters(energy?: string) {
@@ -71,56 +93,73 @@ function brainFilters(brain?: string) {
 }
 
 export async function runRecommendation(ctx: RecommendContext) {
+  const asOf = ctx.asOf ?? new Date();
   const exclude = new Set([...ctx.history, ...(ctx.excludeIds ?? [])]);
+  const hasHistory = ctx.history.length > 0;
   let movies: MovieSummary[] = [];
   let reason = "";
   const labels = [trustBadge("metadata")];
+  const base = discoverBase(ctx);
 
   if (ctx.mode === "short_time" && ctx.maxRuntime) {
-    const discovered = await discoverMovies({ sort: "rating", ratingGte: 6 });
-    movies = discovered.results.slice(0, 30);
-    reason = `Short-on-time mode — verify runtime on each title (target ≤ ${ctx.maxRuntime} min).`;
+    const discovered = await discoverMovies({
+      ...base,
+      sort: "rating",
+      ratingGte: 6,
+      runtimeLte: ctx.maxRuntime,
+      runtimeGte: 1,
+    });
+    movies = watchable(discovered.results.slice(0, 40), ctx);
+    reason = movies.length
+      ? `Released titles ≤ ${ctx.maxRuntime} min (TMDB runtime filter).`
+      : `No released titles found ≤ ${ctx.maxRuntime} min with verified runtime.`;
   } else if (ctx.mode === "anti_algorithm") {
-    const discovered = await discoverMovies({ sort: "release_date" });
-    movies = dedupe(discovered.results, new Set(ctx.history));
-    reason = "Intentionally outside your recent history.";
+    const discovered = await discoverMovies({
+      ...base,
+      sort: "popularity",
+      ratingGte: 6,
+    });
+    movies = watchable(dedupe(discovered.results, new Set(ctx.history)), ctx);
+    reason = hasHistory
+      ? "Outside your recent watch history."
+      : "Popular released titles (no watch history on file yet).";
     labels.push(trustBadge("ai_interpretation"));
   } else if (ctx.mode === "taste_expansion") {
-    const discovered = await discoverMovies({ sort: "rating", ratingGte: 7 });
-    movies = dedupe(discovered.results, exclude).slice(0, 40);
-    reason = "Higher-rated titles you have not viewed recently.";
+    const discovered = await discoverMovies({ ...base, sort: "rating", ratingGte: 7 });
+    movies = watchable(dedupe(discovered.results, exclude).slice(0, 40), ctx);
+    reason = "Higher-rated released titles you have not viewed recently.";
   } else if (ctx.mode === "background") {
-    const discovered = await discoverMovies(energyFilters("low"));
-    movies = discovered.results;
+    const discovered = await discoverMovies({ ...base, ...energyFilters("low") });
+    movies = watchable(discovered.results, ctx);
     reason = "Comfortable, lower-attention picks from popularity signals.";
   } else if (ctx.mode === "roulette") {
-    movies = await poolFromHistory(ctx.history, ctx.favorites);
+    movies = await poolFromHistory(ctx.history, ctx.favorites, ctx);
     movies = dedupe(movies, exclude);
     reason = "Weighted random from taste-adjacent catalog recommendations.";
     labels.push(trustBadge("ai_prediction"));
   } else if (ctx.mode === "double_feature") {
-    movies = await poolFromHistory(ctx.history, ctx.favorites);
+    movies = await poolFromHistory(ctx.history, ctx.favorites, ctx);
     movies = dedupe(movies, exclude).slice(0, 12);
     reason = "Pairing from complementary recommendations — verify tone yourself.";
     labels.push(trustBadge("ai_interpretation"));
   } else if (ctx.mode === "weekend_marathon") {
-    movies = await poolFromHistory(ctx.history, ctx.favorites);
+    movies = await poolFromHistory(ctx.history, ctx.favorites, ctx);
     movies = dedupe(movies, exclude).slice(0, 8);
     reason = "Five-to-eight film marathon from your taste anchor.";
   } else {
-    const filters = { ...energyFilters(ctx.energy), ...brainFilters(ctx.brain) };
+    const filters = { ...base, ...energyFilters(ctx.energy), ...brainFilters(ctx.brain) };
     const [pool, discovered] = await Promise.all([
-      poolFromHistory(ctx.history, ctx.favorites),
+      poolFromHistory(ctx.history, ctx.favorites, ctx),
       discoverMovies(filters),
     ]);
-    movies = dedupe([...pool, ...discovered.results], exclude);
+    movies = watchable(dedupe([...pool, ...discovered.results], exclude), ctx);
     reason = ctx.mode === "instant" ? "Single best match from taste + discover." : `Mode: ${ctx.mode}`;
   }
 
   if (!movies.length) {
     const trending = await getTrendingMovies("day");
-    movies = trending.results;
-    reason = "Fallback to trending — personalize with watch history.";
+    movies = watchable(trending.results, { ...ctx, asOf });
+    reason = "Fallback to trending released titles — personalize with watch history.";
   }
 
   const primary = pick(movies);
@@ -133,5 +172,5 @@ export async function runRecommendation(ctx: RecommendContext) {
     reason = "Prediction only — may conflict with stated preferences.";
   }
 
-  return { primary, secondary, movies: marathon, reason, labels };
+  return { primary, secondary, movies: marathon, reason, labels, hasHistory };
 }

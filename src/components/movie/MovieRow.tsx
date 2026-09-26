@@ -1,3 +1,4 @@
+import { CinematicRail } from "@/components/navigation/CinematicRail";
 import type { MovieSummary } from "@/lib/tmdb/types";
 import { MovieCard } from "./MovieCard";
 import Link from "next/link";
@@ -11,6 +12,7 @@ export function MovieRow({
   spotlight,
   upcoming,
   bare = false,
+  railId,
 }: {
   title: string;
   movies: MovieSummary[];
@@ -21,6 +23,8 @@ export function MovieRow({
   upcoming?: boolean;
   /** Skip outer section wrapper when parent provides section chrome */
   bare?: boolean;
+  /** Stable id for horizontal scroll position memory */
+  railId?: string;
 }) {
   if (!movies.length) {
     return (
@@ -33,19 +37,20 @@ export function MovieRow({
     );
   }
 
+  const label = title || "Movies";
+  const storageKey = railId ?? (title ? title.toLowerCase().replace(/\s+/g, "-") : undefined);
+
   const scroller = (
-    <div className="row-scroller-wrap">
-      <div className="row-scroller">
-        {movies.map((movie) => (
-          <MovieCard
-            key={movie.id}
-            movie={movie}
-            variant={spotlight ? "spotlight" : upcoming ? "upcoming" : "standard"}
-            showUpdated={showUpdated}
-          />
-        ))}
-      </div>
-    </div>
+    <CinematicRail label={label} storageKey={storageKey}>
+      {movies.map((movie) => (
+        <MovieCard
+          key={movie.id}
+          movie={movie}
+          variant={spotlight ? "spotlight" : upcoming ? "upcoming" : "standard"}
+          showUpdated={showUpdated}
+        />
+      ))}
+    </CinematicRail>
   );
 
   if (bare) return scroller;

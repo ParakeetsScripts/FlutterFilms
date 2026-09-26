@@ -1,5 +1,6 @@
 import "server-only";
 
+import { hasKnownRuntime, meetsRuntimeConstraint } from "@/lib/movies/eligibility";
 import { buildRecommendationExplanation } from "../explain";
 import { runRecommendation } from "./recommendations";
 import { getMovie } from "@/lib/tmdb/movies";
@@ -22,11 +23,24 @@ export type TonightPick = {
   primary: MovieSummary;
   alternates: MovieSummary[];
   explanation: string[];
+  matched: string[];
+  notUsed: string[];
   runtime?: number | null;
   genres: string[];
   ratings: { tmdb?: number | null; imdb?: string | null };
   watchProviders: string[];
   labels: ReturnType<typeof trustBadge>[];
+};
+
+const MOOD_LABELS: Record<TonightInput["mood"], string> = {
+  low: "low energy",
+  balanced: "balanced mood",
+  high: "high energy",
+};
+
+const ATTENTION_LABELS: Record<TonightInput["attention"], string> = {
+  background: "background viewing",
+  full: "full attention",
 };
 
 export async function buildTonightPick(
@@ -38,6 +52,7 @@ export async function buildTonightPick(
   const mode = input.familiarity === "different" ? "anti_algorithm" : "instant";
   const energy = input.mood;
   const brain = input.attention === "full" ? "thoughtful" : "casual";
+  const hasHistory = ctx.history.length > 0;
 
   const result = await runRecommendation({
     mode,
@@ -47,6 +62,8 @@ export async function buildTonightPick(
     maxRuntime: input.minutes,
     energy,
     brain,
+    language: input.language,
+    genreIds: input.genreIds,
   });
 
   if (!result.primary) return null;
@@ -64,11 +81,41 @@ export async function buildTonightPick(
   const alternates = unique.slice(1, 3);
   const detail = await getMovie(primary.id);
   const providers = await getWatchProviders(primary.id, region);
+  const runtime = detail?.runtime ?? null;
 
-  const explanation = buildRecommendationExplanation(tasteSignals);
-  if (result.reason) explanation.unshift(result.reason);
-  if (input.minutes) explanation.push(`Target runtime ≤ ${input.minutes} minutes — verify on title page.`);
-  if (input.familiarity === "different") explanation.push("Picked outside your recent history for variety.");
+  const becauseYouChose: string[] = [
+    `≤ ${input.minutes} min available`,
+    MOOD_LABELS[input.mood],
+    ATTENTION_LABELS[input.attention],
+    input.familiarity === "different" ? "something different" : "familiar picks",
+  ];
+  if (input.language) becauseYouChose.push(`language: ${input.language}`);
+  if (input.genreIds?.length) becauseYouChose.push(`genre filter applied`);
+
+  const matched: string[] = ["released (not a future title)"];
+  if (hasKnownRuntime(runtime)) {
+    if (meetsRuntimeConstraint(runtime, input.minutes)) {
+      matched.push(`${runtime} min runtime`);
+    } else {
+      matched.push(`runtime ${runtime} min (exceeds your ${input.minutes} min limit)`);
+    }
+  } else if (input.minutes) {
+    matched.push("runtime unknown — verify on title page");
+  }
+  if (detail?.genres?.length) matched.push(detail.genres.map((g) => g.name).join(", "));
+  if (result.reason) matched.push(result.reason);
+
+  const notUsed: string[] = [];
+  if (!hasHistory) notUsed.push("watch history unavailable");
+  if (!providers?.streaming?.length && !providers?.rent?.length && !providers?.buy?.length) {
+    notUsed.push("provider availability not confirmed for your region");
+  }
+
+  const explanation = [
+    `Because you chose: ${becauseYouChose.join(" · ")}`,
+    ...buildRecommendationExplanation(tasteSignals).slice(0, 2),
+  ];
+  if (notUsed.length) explanation.push(`Not verified: ${notUsed.join("; ")}`);
 
   const watchNames = [
     ...(providers?.streaming ?? []).map((p) => p.name),
@@ -80,7 +127,9 @@ export async function buildTonightPick(
     primary,
     alternates,
     explanation: explanation.slice(0, 6),
-    runtime: detail?.runtime ?? null,
+    matched: matched.slice(0, 6),
+    notUsed,
+    runtime,
     genres: detail?.genres?.map((g) => g.name) ?? primary.genres?.map((g) => g.name) ?? [],
     ratings: {
       tmdb: detail?.tmdbRating ?? detail?.voteAverage ?? primary.voteAverage,

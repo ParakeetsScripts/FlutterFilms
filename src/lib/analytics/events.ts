@@ -63,7 +63,16 @@ export type AnalyticsEventName =
   | "cta_clicked"
   | "install_prompt_shown"
   | "install_completed"
-  | "pwa_installed";
+  | "pwa_installed"
+  | "rail_arrow_left"
+  | "rail_arrow_right"
+  | "rail_swipe"
+  | "rail_drag"
+  | "rail_view"
+  | "rail_end_reached"
+  | "scrolly_section_view"
+  | "scrolly_scene_view"
+  | "scroll_to_top";
 
 export type AnalyticsProperties = Record<string, string | number | boolean | null | undefined>;
 

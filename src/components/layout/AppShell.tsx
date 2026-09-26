@@ -4,6 +4,7 @@ import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { SITE_FULL_NAME, SITE_NAME, SITE_TAGLINE } from "@/lib/brand";
 import { Logo } from "@/components/layout/Logo";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { ScrollToTop } from "@/components/navigation/ScrollToTop";
 import { SearchOverlay } from "@/components/search/SearchOverlay";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useUserLibrary } from "@/components/providers/UserLibraryProvider";
@@ -174,6 +175,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </footer>
 
       <MobileNav onSearch={() => setSearchOpen(true)} />
+      <ScrollToTop />
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );

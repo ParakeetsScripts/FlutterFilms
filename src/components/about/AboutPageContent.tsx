@@ -1,5 +1,6 @@
 "use client";
 
+import { AboutFeatureCatalog, type AboutFeature } from "@/components/about/AboutFeatureCatalog";
 import { ScrollReveal } from "@/components/scrollytelling/ScrollReveal";
 import { SITE_NAME } from "@/lib/brand";
 import Link from "next/link";
@@ -24,13 +25,10 @@ const FEATURES = [
   { title: "People & franchises", href: "/people", desc: "Filmmakers, cast, and collections." },
 ];
 
-export function AboutPageContent() {
+export function AboutPageContent({ features }: { features: AboutFeature[] }) {
   return (
     <div className="about-page space-y-16 pb-16">
-      <ScrollReveal className="about-hero ai-usage-card">
-        <p className="eyebrow">About</p>
-        <h1 className="page-header__title mt-2">About {SITE_NAME}</h1>
-        <p className="mt-3 text-xl text-[var(--text-primary)] font-serif">A smarter way to discover movies.</p>
+      <ScrollReveal className="about-hero glass-surface glass-surface--card" as="div">
         <p className="mt-4 max-w-3xl text-[var(--text-secondary)] leading-relaxed">
           {SITE_NAME} combines real movie metadata, personalized discovery, and AI-powered movie intelligence to help
           you decide what to watch and explore what comes next.
@@ -158,6 +156,10 @@ export function AboutPageContent() {
             </Link>
           ))}
         </div>
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <AboutFeatureCatalog features={features} />
       </ScrollReveal>
 
       <ScrollReveal className="about-cta ai-usage-card text-center">

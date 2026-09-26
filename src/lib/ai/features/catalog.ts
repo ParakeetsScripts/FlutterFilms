@@ -20,7 +20,9 @@ export type FeatureCatalogEntry = {
   api?: string;
 };
 
-export const FEATURE_CATALOG: FeatureCatalogEntry[] = [
+import { FEATURE_CATALOG_EXTENDED } from "./catalog-extended";
+
+const FEATURE_CATALOG_BASE: FeatureCatalogEntry[] = [
   { id: 1, slug: "movie-interview", title: "AI Movie Interview", category: "discovery", description: "Answer guided questions to build your movie profile.", href: "/my-cinema/interview", api: "/api/ai/interview" },
   { id: 2, slug: "vibe-search", title: "Vibe Search", category: "discovery", description: "Search by mood, atmosphere, and feeling.", href: "/intelligence/discover", api: "/api/ai/vibe-search" },
   { id: 3, slug: "emotion-timeline", title: "Emotion Timeline Search", category: "discovery", description: "Find films by emotional intensity patterns.", href: "/intelligence/discover" },
@@ -122,3 +124,5 @@ export const FEATURE_CATALOG: FeatureCatalogEntry[] = [
   { id: 99, slug: "weekly-brief", title: "AI Weekly Discovery Brief", category: "creative", description: "New, overlooked, and upcoming.", api: "/api/ai/weekly-brief", href: "/my-cinema" },
   { id: 100, slug: "cinema-agent", title: "Cinema Agent Mode", category: "agent", description: "Persistent movie agent across the platform.", href: "/copilot", api: "/api/ai/chat" },
 ];
+
+export const FEATURE_CATALOG: FeatureCatalogEntry[] = [...FEATURE_CATALOG_BASE, ...FEATURE_CATALOG_EXTENDED];

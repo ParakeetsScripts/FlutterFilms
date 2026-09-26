@@ -29,21 +29,43 @@ export const viewport = {
   themeColor: "#06070a",
 };
 
+const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
 export const metadata: Metadata = {
   title: {
     default: SITE_FULL_NAME,
     template: `%s · ${SITE_NAME}`,
   },
   description: SITE_TAGLINE,
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(siteOrigin),
+  alternates: { canonical: "/" },
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   openGraph: {
     type: "website",
     siteName: SITE_FULL_NAME,
     title: SITE_FULL_NAME,
     description: SITE_TAGLINE,
+    url: siteOrigin,
   },
   twitter: { card: "summary_large_image", title: SITE_FULL_NAME, description: SITE_TAGLINE },
-  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "black-translucent" },
+  appleWebApp: {
+    capable: true,
+    title: SITE_NAME,
+    statusBarStyle: "black-translucent",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-title": SITE_NAME,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -21,7 +21,8 @@
     "db:migrate-sqlite": "tsx scripts/migrate-sqlite-to-postgres.ts",
     "cap:sync": "npx cap sync",
     "cap:ios": "npx cap open ios",
-    "launch:check": "tsx scripts/launch-checklist.ts"
+    "launch:check": "tsx scripts/launch-checklist.ts",
+    "icons:generate": "python3 scripts/generate-pwa-icons.py"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",

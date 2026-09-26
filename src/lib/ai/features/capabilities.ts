@@ -1,4 +1,5 @@
 import type { FeatureDefinition, ModelCapability } from "./types";
+import { extendedCapabilityForSlug } from "./capabilities-extended";
 
 type Cap = Omit<FeatureDefinition, "id" | "slug" | "title" | "category" | "description" | "href" | "api">;
 
@@ -81,30 +82,30 @@ export const FEATURE_CAPABILITIES: Record<string, Cap> = {
   "motif-explorer": { ...briefing, hasTests: false },
   "symbolism-mode": betaPartial({ ...briefing, hasApi: false }),
   "filmmaking-breakdown": { ...briefing, hasTests: false },
-  "director-intent": planned,
-  "production-challenges": planned,
+  "director-intent": { ...briefing, hasTests: true },
+  "production-challenges": { ...catalog, hasTests: true },
   "location-intelligence": { ...catalog, hasTests: true, requiredData: ["catalog"] },
-  "version-comparison": planned,
+  "version-comparison": { ...catalog, hasTests: true },
   "actor-similarity": { ...catalog, requiredData: ["catalog", "people"], hasTests: true },
   "director-similarity": betaPartial({ requiredData: ["catalog", "people"] }),
   "actor-chemistry": betaPartial({ requiredData: ["catalog", "people"], hasApi: false }),
-  "collaboration-graph": planned,
+  "collaboration-graph": { ...catalog, requiredData: ["catalog", "people"], hasTests: true },
   "career-turning-points": { ...catalog, requiredData: ["catalog", "people"], hasTests: false },
   "filmography-journey": { ...catalog, requiredData: ["catalog", "people"], hasTests: false },
-  "underseen-actor": planned,
-  "crew-discovery": planned,
-  "crew-influence": planned,
-  "creative-team-dna": planned,
+  "underseen-actor": { ...recommend, hasTests: true },
+  "crew-discovery": { ...catalog, hasTests: true },
+  "crew-influence": { ...catalog, requiredData: ["catalog", "user"], hasTests: true },
+  "creative-team-dna": { ...authUser, hasTests: true },
   "franchise-health": { ...catalog, requiredData: ["catalog", "franchise"], hasTests: false },
   "timeline-conflicts": betaPartial({ requiredData: ["catalog", "franchise"], hasTests: true }),
   "watch-order": betaPartial({ hasService: true, hasApi: false, requiredData: ["catalog", "franchise"] }),
   "franchise-entry": betaPartial({ requiredData: ["catalog", "franchise"] }),
   "franchise-completion": betaPartial({ ...authUser, hasApi: false }),
-  "universe-map": planned,
+  "universe-map": { ...catalog, requiredData: ["catalog", "franchise"], hasTests: true },
   "franchise-similarity": betaPartial({ requiredData: ["catalog", "franchise"], hasTests: true }),
   "spin-off-discovery": betaPartial({ requiredData: ["catalog", "franchise"], hasTests: true }),
-  "adaptation-tracker": planned,
-  "remake-evolution": planned,
+  "adaptation-tracker": { ...catalog, requiredData: ["catalog", "franchise"], hasTests: true },
+  "remake-evolution": { ...catalog, requiredData: ["catalog", "franchise"], hasTests: true },
   "taste-dna-2": { ...authUser, hasTests: true, requiredModelCapabilities: [] },
   "taste-contradiction": betaPartial({ ...authUser, hasApi: false }),
   "favorite-patterns": betaPartial({ ...authUser, hasApi: false }),
@@ -117,13 +118,13 @@ export const FEATURE_CAPABILITIES: Record<string, Cap> = {
   "global-cinema-map": betaPartial({ ...authUser, hasApi: false }),
   "group-picker": { ...catalog, requiredData: ["catalog", "user"], hasTests: false },
   "taste-intersection": { ...catalog, requiredData: ["catalog", "user"], hasTests: false },
-  "friend-recs": planned,
+  "friend-recs": { ...recommend, hasTests: true },
   "shared-watchlists": { ...authUser, hasService: true, hasApi: true, hasTests: true },
   "movie-room": { ...authUser, hasService: true, hasApi: true, hasTests: true },
   "debate-mode": betaPartial({ hasService: true, hasApi: false, requiredModelCapabilities: ["chat"] }),
-  "spoiler-rooms": planned,
+  "spoiler-rooms": { ...catalog, hasTests: true },
   "discussion-starter": betaPartial({ hasService: true, hasApi: false, requiredModelCapabilities: ["chat"] }),
-  "sentiment-map": planned,
+  "sentiment-map": { ...authUser, hasTests: true },
   "taste-match": { ...catalog, requiredData: ["catalog", "user"], hasTests: false },
   "smart-resume": betaPartial({ hasService: true, hasApi: false, requiredData: ["user"] }),
   "session-planner": betaPartial({ ...recommend }),
@@ -134,9 +135,9 @@ export const FEATURE_CAPABILITIES: Record<string, Cap> = {
   "food-pairing": betaPartial({ hasService: true, hasApi: false, requiredModelCapabilities: ["chat"] }),
   "atmosphere-mode": betaPartial({ hasService: true, hasApi: false, requiredModelCapabilities: ["chat"] }),
   "post-reflection": betaPartial({ ...authUser, hasApi: false }),
-  "rewatch-reflection": planned,
+  "rewatch-reflection": { ...authUser, hasTests: true },
   "scene-memory": { ...catalog, hasTests: true },
-  "quote-search": planned,
+  "quote-search": { ...catalog, hasTests: true },
   "visual-description": { ...catalog, hasTests: false },
   "remember-wizard": { ...catalog, hasTests: true },
   "nl-filters": { ...catalog, hasTests: true },
@@ -165,5 +166,5 @@ export const FEATURE_CAPABILITIES: Record<string, Cap> = {
 };
 
 export function defaultCapabilities(slug: string): Cap {
-  return FEATURE_CAPABILITIES[slug] ?? planned;
+  return FEATURE_CAPABILITIES[slug] ?? extendedCapabilityForSlug(slug) ?? planned;
 }

@@ -4,6 +4,11 @@ import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/brand";
 import { Logo } from "@/components/layout/Logo";
 import { MobileNav } from "@/components/layout/MobileNav";
+import {
+  DESKTOP_MORE_NAV,
+  PRIMARY_NAV,
+  isNavActive,
+} from "@/components/layout/nav-config";
 import { ScrollToTop } from "@/components/navigation/ScrollToTop";
 import { SearchOverlay } from "@/components/search/SearchOverlay";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -11,15 +16,6 @@ import { useUserLibrary } from "@/components/providers/UserLibraryProvider";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-
-const PRIMARY = [
-  { href: "/", label: "Home" },
-  { href: "/about", label: "About" },
-  { href: "/discover", label: "Discover" },
-  { href: "/copilot", label: "AI" },
-  { href: "/my-cinema", label: "My Cinema" },
-  { href: "/watchlist", label: "Watchlist" },
-];
 
 const FOOTER_EXPLORE = [
   { href: "/movies", label: "Movies" },
@@ -106,15 +102,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={settings.tvMode ? "tv-mode" : undefined}>
-      <header className={`site-header ${scrolled ? "is-scrolled" : ""}`}>
+      <header className={`site-header glass-surface glass-surface--nav ${scrolled ? "is-scrolled" : ""}`}>
         <div className="site-header__inner">
           <Logo />
           <nav className="site-nav" aria-label="Primary">
-            {PRIMARY.map((item) => (
+            {PRIMARY_NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`site-nav__link ${pathname === item.href ? "is-active" : ""}`}
+                className={`site-nav__link ${isNavActive(pathname, item.href) ? "is-active" : ""}`}
+                aria-current={isNavActive(pathname, item.href) ? "page" : undefined}
               >
                 {item.label}
               </Link>
@@ -125,22 +122,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className={`site-nav__link ${moreOpen ? "is-active" : ""}`}
                 onClick={() => setMoreOpen((open) => !open)}
                 aria-expanded={moreOpen}
+                aria-haspopup="menu"
               >
                 More
               </button>
               {moreOpen ? (
                 <>
                   <button type="button" className="theme-toggle-backdrop" onClick={() => setMoreOpen(false)} aria-hidden />
-                  <div className="site-nav__dropdown">
-                    <Link href="/watchlists" className="site-nav__dropdown-link" onClick={() => setMoreOpen(false)}>Lists</Link>
-                    <Link href="/community" className="site-nav__dropdown-link" onClick={() => setMoreOpen(false)}>Community</Link>
-                    <Link href="/settings" className="site-nav__dropdown-link" onClick={() => setMoreOpen(false)}>Settings</Link>
+                  <div className="site-nav__dropdown" role="menu">
+                    {DESKTOP_MORE_NAV.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className="site-nav__dropdown-link"
+                        role="menuitem"
+                        onClick={() => setMoreOpen(false)}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
                   </div>
                 </>
               ) : null}
             </div>
           </nav>
           <div className="site-header__actions">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="search-trigger-mobile"
+              aria-label="Search"
+            >
+              <span aria-hidden>⌕</span>
+            </button>
             <button type="button" onClick={() => setSearchOpen(true)} className="search-trigger" aria-label="Search">
               <span className="search-trigger__label">Search</span>
               <kbd>{modKey} K</kbd>

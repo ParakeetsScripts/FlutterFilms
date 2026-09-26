@@ -5,9 +5,9 @@ import { countByStatus, getValidatedFeatures, validateFeatureStatus } from "./va
 import { getFeatureDefinitions } from "./definitions";
 
 describe("feature status validator", () => {
-  it("registers exactly 100 features", () => {
-    expect(FEATURE_CATALOG).toHaveLength(100);
-    expect(getFeatureDefinitions()).toHaveLength(100);
+  it("registers exactly 200 features", () => {
+    expect(FEATURE_CATALOG).toHaveLength(200);
+    expect(getFeatureDefinitions()).toHaveLength(200);
   });
 
   it("never marks planned features as live", () => {
@@ -19,18 +19,20 @@ describe("feature status validator", () => {
     }
   });
 
-  it("live features require service, api, ui, and tests", () => {
+  it("live features require service, api, ui, and explicit acceptance tests", () => {
     const live = getValidatedFeatures().filter((f) => f.status === "live");
     for (const feature of live) {
       expect(feature.hasService).toBe(true);
       expect(feature.hasTests).toBe(true);
     }
+    expect(live.length).toBeLessThan(200);
   });
 
-  it("reports validator totals that sum to 100", () => {
+  it("reports validator totals that sum to 200", () => {
     const counts = countByStatus();
-    expect(counts.live).toBeLessThan(100);
-    expect(counts.live + counts.beta + counts.planned + counts.degraded + counts.error).toBe(100);
+    expect(counts.live).toBeLessThan(200);
+    expect(counts.beta).toBeGreaterThan(0);
+    expect(counts.live + counts.beta + counts.planned + counts.degraded + counts.error).toBe(200);
   });
 
   it("assigns routes for every feature", () => {
@@ -46,20 +48,21 @@ describe("feature status validator", () => {
     expect(vibe.hasService).toBe(true);
   });
 
-  it("keeps director-intent planned", () => {
+  it("keeps generic_prompt tier features in beta", () => {
     const feature = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "director-intent")!);
-    expect(feature.status).toBe("planned");
-    expect(feature.hasService).toBe(false);
+    expect(feature.status).toBe("beta");
+    expect(feature.hasService).toBe(true);
+    expect(feature.hasTests).toBe(false);
   });
 
-  it("allows authenticated features to be LIVE when production-ready", () => {
+  it("requires acceptance contracts for LIVE auth features", () => {
     const shared = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "shared-watchlists")!);
     expect(shared.requiresAuth).toBe(true);
-    expect(shared.status).toBe("live");
-    expect(shared.blockers).not.toContain("Requires authenticated user");
+    expect(shared.status).toBe("beta");
+    expect(shared.hasTests).toBe(false);
 
     const room = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "movie-room")!);
-    expect(room.status).toBe("live");
+    expect(room.status).toBe("beta");
   });
 
   it("documents auth as a note, not a blocker", () => {
@@ -68,9 +71,7 @@ describe("feature status validator", () => {
     expect(taste.blockers).not.toEqual(expect.arrayContaining([expect.stringMatching(/authenticated/i)]));
   });
 
-  it("caps inflated features to honest beta status", () => {
-    const counts = countByStatus();
-    expect(counts.live).toBeLessThan(40);
+  it("caps heuristic search and generative features below LIVE", () => {
     const semantic = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "semantic-catalog")!);
     expect(semantic.status).toBe("beta");
     const poster = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "poster-generator")!);

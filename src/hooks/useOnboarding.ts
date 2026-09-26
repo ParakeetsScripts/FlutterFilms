@@ -52,19 +52,38 @@ export function useOnboarding() {
 
   useEffect(() => {
     const local = onboardingStore.read();
-    void fetch("/api/onboarding/state")
+    let settled = false;
+    const finish = (next: OnboardingState) => {
+      if (settled) return;
+      settled = true;
+      setState(next);
+      onboardingStore.write(next);
+      setReady(true);
+    };
+
+    const timeout = window.setTimeout(() => finish(local), 4000);
+    const controller = new AbortController();
+
+    void fetch("/api/onboarding/state", { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
         const server = data.state as OnboardingState | undefined;
         const merged = server?.favoriteMovies?.length
           ? { ...defaultOnboardingState(), ...local, ...server }
           : { ...defaultOnboardingState(), ...server, ...local };
-        setState(merged);
-        onboardingStore.write(merged);
         if (!merged.completed) track("onboarding_started");
+        finish(merged);
       })
-      .catch(() => setState(local))
-      .finally(() => setReady(true));
+      .catch(() => finish(local))
+      .finally(() => {
+        window.clearTimeout(timeout);
+        controller.abort();
+      });
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, []);
 
   const addMovie = useCallback(

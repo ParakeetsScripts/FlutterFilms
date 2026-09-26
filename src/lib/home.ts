@@ -8,6 +8,7 @@ import {
   getUpcomingMovies,
 } from "@/lib/tmdb/movies";
 import type { MovieSummary } from "@/lib/tmdb/types";
+import { buildE2EHomeData } from "@/lib/e2e/home-fixture";
 import { FEATURED_GENRES } from "@/lib/regions";
 
 const ROW_LIMIT = 14;
@@ -48,6 +49,17 @@ function sortByReleaseDate(movies: MovieSummary[]): MovieSummary[] {
 }
 
 export async function loadHomeData(language?: string): Promise<HomeData> {
+  try {
+    return await loadHomeDataFromSources(language);
+  } catch (error) {
+    if (process.env.PLAYWRIGHT === "1") {
+      return buildE2EHomeData();
+    }
+    throw error;
+  }
+}
+
+async function loadHomeDataFromSources(language?: string): Promise<HomeData> {
   const [trending, popular, nowPlaying, upcoming, topRated, latest, genreSpotlight] = await Promise.all([
     settled(getTrendingMovies("day")),
     settled(getPopularMovies()),

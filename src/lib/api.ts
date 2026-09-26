@@ -8,6 +8,9 @@ import { NextResponse } from "next/server";
 const searchHits = new Map<string, { count: number; resetAt: number }>();
 
 export function rateLimit(key: string, limit = 30, windowMs = 60_000) {
+  if (process.env.PLAYWRIGHT === "1" || process.env.E2E_RATE_LIMIT_OFF === "1") {
+    return;
+  }
   const now = Date.now();
   const current = searchHits.get(key);
   if (!current || now > current.resetAt) {

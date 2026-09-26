@@ -10,6 +10,11 @@ import {
   triggerInstallPrompt,
   type InstallPlatform,
 } from "@/lib/pwa/install-prompt";
+import {
+  getInstallCapability,
+  uninstallInstructionsFor,
+  type InstallMethod,
+} from "@/lib/pwa/platform";
 import { getCanonicalSiteLabel, getCanonicalSiteUrl } from "@/lib/site-url";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -20,7 +25,7 @@ const PLATFORMS: Array<{ id: InstallPlatform | "ios" | "ipad"; label: string }> 
   { id: "android", label: "Android" },
   { id: "mac", label: "Mac" },
   { id: "windows", label: "Windows" },
-  { id: "linux", label: "Linux" },
+  { id: "linux", label: "Linux / ChromeOS" },
 ];
 
 function instructionsFor(platform: InstallPlatform, siteLabel: string, siteUrl: string): string[] {
@@ -29,45 +34,52 @@ function instructionsFor(platform: InstallPlatform, siteLabel: string, siteUrl: 
     case "ipad":
       return [
         `Open ${SITE_NAME} in Safari at ${siteLabel}.`,
-        "Tap Share.",
+        "Tap the Share button.",
         "Choose Add to Home Screen.",
-        "Confirm the app name.",
+        "Confirm the name FlutterFilms.",
         "Tap Add.",
+        "iOS does not expose an automatic Install button in every browser — manual Add to Home Screen is the supported path.",
       ];
     case "android":
       return [
-        `Open ${SITE_NAME} at ${siteLabel}.`,
-        "Open the browser menu.",
-        "Choose Install app or Add to Home screen.",
+        `Open ${SITE_NAME} in Chrome or a compatible browser at ${siteLabel}.`,
+        "Open the browser menu (⋮).",
+        "Choose Install app or Add to Home screen (wording varies).",
         "Confirm installation.",
-        "Menu wording can vary by browser and device.",
+        "Some Android browsers only support manual shortcuts.",
       ];
     case "mac":
       return [
-        `Open ${SITE_NAME} in Safari or Chrome at ${siteUrl}.`,
-        "In Chrome or Edge, look for the install icon in the address bar.",
-        "Or open the browser menu and choose Install.",
-        "Safari on macOS uses File → Add to Dock or Share → Add to Dock depending on version.",
+        `Open ${SITE_NAME} in Chrome or Edge at ${siteUrl}.`,
+        "Look for the install icon in the address bar, or open the browser menu.",
+        "Choose Install FlutterFilms.",
+        "Safari on macOS may use File → Add to Dock or Share → Add to Dock depending on version.",
       ];
     case "windows":
       return [
         `Open ${SITE_NAME} in Chrome or Edge at ${siteUrl}.`,
         "Look for the install icon in the address bar.",
-        "Or open the browser menu.",
-        `Choose Install ${SITE_NAME}.`,
+        "Or open the browser menu and choose Install FlutterFilms.",
       ];
     case "linux":
       return [
-        `Open ${SITE_NAME} in a Chromium-based browser at ${siteUrl}.`,
-        "Your browser may support installing to the application launcher or home screen.",
-        "Look for Install in the address bar or browser menu.",
+        `Open ${SITE_NAME} in Chrome or another Chromium browser at ${siteUrl}.`,
+        "ChromeOS and Linux desktops may show Install in the address bar or app menu.",
+        "If no install control appears, bookmark the site or pin the tab.",
       ];
     default:
       return [
         `Open ${SITE_NAME} at ${siteUrl}.`,
-        "Your browser may support adding the app to your home screen, dock, or launcher.",
+        "Your browser may support installing to the home screen, dock, or launcher.",
+        "If installation is unavailable, continue using FlutterFilms in the browser.",
       ];
   }
+}
+
+function methodLabel(method: InstallMethod): string {
+  if (method === "automatic") return "Automatic install available";
+  if (method === "manual") return "Manual installation required";
+  return "Browser install unavailable";
 }
 
 const FAQ = [
@@ -80,8 +92,8 @@ const FAQ = [
     a: "No. Offline support is limited to the app shell and safe cached pages. FlutterFilms does not provide offline movie streaming.",
   },
   {
-    q: "Does installation create an App Store app?",
-    a: "No. This is a web app (PWA) installation in your browser.",
+    q: "Is this in the App Store or Google Play?",
+    a: "No. FlutterFilms installs as a Progressive Web App through your browser unless a future native wrapper is published separately.",
   },
   {
     q: "Can I uninstall it?",
@@ -102,26 +114,42 @@ export function InstallHub() {
   useEffect(() => {
     setPlatform(detectInstallPlatform());
     setStandalone(isStandalonePwa());
-    const check = () => setInstallReady(Boolean(getDeferredInstallPrompt()));
-    check();
-    window.addEventListener("ff-install-prompt-ready", check);
-    return () => window.removeEventListener("ff-install-prompt-ready", check);
+    const sync = () => {
+      setInstallReady(Boolean(getDeferredInstallPrompt()));
+      setStandalone(isStandalonePwa());
+    };
+    sync();
+    window.addEventListener("ff-install-prompt-ready", sync);
+    window.addEventListener("ff-pwa-installed", sync);
+    return () => {
+      window.removeEventListener("ff-install-prompt-ready", sync);
+      window.removeEventListener("ff-pwa-installed", sync);
+    };
   }, []);
+
+  const resolvedPlatform = useMemo<InstallPlatform>(() => {
+    if (platform !== "unknown") return platform;
+    const detected = detectInstallPlatform();
+    return detected === "unknown" ? "windows" : detected;
+  }, [platform]);
+
+  const capability = useMemo(
+    () => getInstallCapability(installReady),
+    [installReady, standalone, platform],
+  );
 
   async function onInstallClick() {
     setInstallMessage(null);
     const outcome = await triggerInstallPrompt();
     if (outcome === "accepted") {
-      setInstallMessage(`${SITE_NAME} installation started.`);
+      setInstallMessage("FlutterFilms installation started in your browser.");
       track("pwa_installed", { source: "install_page" });
     } else if (outcome === "dismissed") {
       setInstallMessage("Install dismissed — use the manual steps below.");
     } else {
-      setInstallMessage("Your browser does not expose an install prompt here. Follow the manual steps below.");
+      setInstallMessage(capability.summary);
     }
   }
-
-  const displayPlatform = platform === "unknown" ? "windows" : platform;
 
   return (
     <div className="install-page space-y-12 pb-16">
@@ -134,57 +162,87 @@ export function InstallHub() {
           to the application shell and safe cached pages — {SITE_NAME} does not provide offline movie streaming.
         </p>
 
+        <div className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--surface-1)] px-4 py-3 text-sm">
+          <p className="font-medium">{methodLabel(capability.method)}</p>
+          <p className="mt-1 text-[var(--text-secondary)]">{capability.summary}</p>
+          <p className="mt-2 text-xs text-[var(--text-muted)]">Detected: {capability.browserLabel}</p>
+        </div>
+
         {standalone ? (
           <p className="mt-6 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-4 py-3 text-sm">
             {SITE_NAME} is already installed on this device.
           </p>
         ) : (
           <div className="mt-6 flex flex-wrap gap-3">
-            {installReady && (
+            {installReady && capability.method === "automatic" ? (
               <button type="button" className="btn btn-primary" onClick={onInstallClick}>
                 Install {SITE_NAME}
               </button>
-            )}
-            <Link href="/" className="btn btn-secondary">Open {SITE_NAME}</Link>
+            ) : null}
+            <Link href="/" className="btn btn-secondary">Continue in browser</Link>
+            <Link href="/install" className="btn btn-ghost">Refresh install status</Link>
           </div>
         )}
         {installMessage && <p className="mt-3 text-sm text-[var(--text-secondary)]">{installMessage}</p>}
       </ScrollReveal>
 
       <ScrollReveal>
-        <h2 className="section-title">Why install {SITE_NAME}?</h2>
+        <h2 className="section-title">What works after installation</h2>
         <ul className="mt-4 grid gap-2 sm:grid-cols-2 text-sm text-[var(--text-secondary)]">
           <li>• Faster access from your home screen or dock</li>
           <li>• App-like, full-screen browsing</li>
-          <li>• Easy return to personalized discovery</li>
+          <li>• Return to personalized discovery quickly</li>
           <li>• Cached app shell for quicker loads</li>
+          <li>• Deep links open inside the installed app</li>
+          <li>• Signed-in sessions behave like the browser</li>
         </ul>
+        <p className="mt-4 text-sm text-[var(--text-muted)]">
+          Does not include: offline movie playback, native App Store/Google Play distribution, or background video.
+        </p>
       </ScrollReveal>
 
       <ScrollReveal>
         <h2 className="section-title">Choose your platform</h2>
-        <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="Install platform">
+        <div className="install-platform-tabs mt-4" role="tablist" aria-label="Install platform">
           {PLATFORMS.map((p) => (
             <button
               key={p.id}
               type="button"
               role="tab"
-              aria-selected={displayPlatform === p.id}
-              className={`filter-chip ${displayPlatform === p.id ? "is-active" : ""}`}
+              id={`install-tab-${p.id}`}
+              aria-selected={resolvedPlatform === p.id}
+              aria-controls={`install-panel-${p.id}`}
+              className={`filter-chip ${resolvedPlatform === p.id ? "is-active" : ""}`}
               onClick={() => setPlatform(p.id as InstallPlatform)}
             >
               {p.label}
             </button>
           ))}
         </div>
-        <ol className="mt-6 list-decimal space-y-2 pl-5 text-sm text-[var(--text-secondary)]">
-          {instructionsFor(displayPlatform, siteLabel, siteUrl).map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
+        <div
+          id={`install-panel-${resolvedPlatform}`}
+          role="tabpanel"
+          aria-labelledby={`install-tab-${resolvedPlatform}`}
+          className="mt-6"
+        >
+          <ol className="list-decimal space-y-2 pl-5 text-sm text-[var(--text-secondary)]">
+            {instructionsFor(resolvedPlatform, siteLabel, siteUrl).map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
         <p className="mt-4 text-xs text-[var(--text-muted)]">
           Canonical URL: <a href={siteUrl} className="text-[var(--accent)] underline-offset-2 hover:underline">{siteUrl}</a>
         </p>
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <h2 className="section-title">Remove the installed app</h2>
+        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-[var(--text-secondary)]">
+          {uninstallInstructionsFor(resolvedPlatform).map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
       </ScrollReveal>
 
       <ScrollReveal>

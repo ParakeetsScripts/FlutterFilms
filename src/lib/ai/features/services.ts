@@ -27,6 +27,8 @@ import { getRoomByCode } from "@/lib/social/rooms";
 import { getSharedWatchlist } from "@/lib/social/watchlists";
 import { vibeSearch } from "../intelligence/vibe-search";
 import { trustBadge } from "../trust";
+import { tryExecuteExtendedFeature } from "./extended-services";
+import { tryExecutePlannedFeature } from "./planned-services";
 import type { FeatureDefinition, FeatureRunInput, FeatureRunResult } from "./types";
 
 export type FeatureContext = {
@@ -117,6 +119,79 @@ export async function executeFeatureService(
   const userId = ctx.userId ?? null;
 
   try {
+    if (def.slug === "emotion-timeline") {
+      const query = String(input.query ?? "emotional journey");
+      const result = await vibeSearch(query);
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: result.results?.length ? "success" : "insufficient_data",
+        data: { ...result, timeline: result.results?.slice(0, 8).map((m, i) => ({ act: i + 1, title: m.title })) },
+        labels: result.labels ?? [trustBadge("metadata"), trustBadge("ai_interpretation")],
+        ranAt: new Date().toISOString(),
+      };
+    }
+
+    if (def.slug === "micro-genre") {
+      const query = String(input.query ?? "neo-noir");
+      const result = await vibeSearch(query);
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: result.results?.length ? "success" : "insufficient_data",
+        data: { microGenre: query, picks: result.results?.slice(0, 10) },
+        labels: result.labels ?? [trustBadge("metadata")],
+        ranAt: new Date().toISOString(),
+      };
+    }
+
+    if (def.slug === "franchise-catchup") {
+      const collectionId = Number(input.collectionId);
+      if (!collectionId) return insufficient(def, "Provide collectionId.");
+      const analysis = await analyzeFranchise(collectionId, history);
+      const remaining = analysis.unwatched?.slice(0, 5) ?? [];
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: analysis.chronological?.length ? "success" : "insufficient_data",
+        data: { franchise: analysis.name, catchUp: remaining, completionPercent: analysis.completionPercent },
+        labels: [trustBadge("metadata")],
+        ranAt: new Date().toISOString(),
+      };
+    }
+
+    if (def.slug === "actor-chemistry") {
+      const personId = Number(input.personId);
+      if (!personId) return insufficient(def, "Provide personId.");
+      const profile = await analyzePerson(personId);
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: profile.frequentCoStars?.length ? "success" : "insufficient_data",
+        data: { coStars: profile.frequentCoStars, note: "Chemistry inferred from shared top-billed credits — not performance analysis." },
+        labels: [trustBadge("metadata"), trustBadge("ai_interpretation")],
+        ranAt: new Date().toISOString(),
+      };
+    }
+
+    if (def.slug === "watch-order") {
+      const collectionId = Number(input.collectionId);
+      if (!collectionId) return insufficient(def, "Provide collectionId.");
+      const analysis = await analyzeFranchise(collectionId, history);
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: analysis.chronological?.length ? "success" : "insufficient_data",
+        data: {
+          releaseOrder: analysis.releaseOrder,
+          chronological: analysis.chronological,
+          note: analysis.watchOrderNote,
+        },
+        labels: [trustBadge("metadata")],
+        ranAt: new Date().toISOString(),
+      };
+    }
+
     if (def.slug === "vibe-search" || def.slug === "nl-filters") {
       const query = String(input.query ?? "");
       if (!query.trim()) return insufficient(def, "Enter a search query.");
@@ -179,32 +254,40 @@ export async function executeFeatureService(
     if (def.slug === "movie-room") {
       const code = String(input.code ?? "");
       if (!code) return insufficient(def, "Room code required.");
-      const room = await getRoomByCode(code);
-      if (!room) return insufficient(def, "Room not found.");
-      return {
-        featureId: def.id,
-        slug: def.slug,
-        status: "success",
-        data: room,
-        labels: [trustBadge("user")],
-        ranAt: new Date().toISOString(),
-      };
+      try {
+        const room = await getRoomByCode(code);
+        if (!room) return insufficient(def, "Room not found.");
+        return {
+          featureId: def.id,
+          slug: def.slug,
+          status: "success",
+          data: room,
+          labels: [trustBadge("user")],
+          ranAt: new Date().toISOString(),
+        };
+      } catch {
+        return insufficient(def, "Room not found.");
+      }
     }
 
     if (def.slug === "shared-watchlists") {
       const watchlistId = String(input.watchlistId ?? "");
       if (!userId) return unavailable(def, "Sign in required for this feature.");
       if (!watchlistId) return insufficient(def, "Provide a watchlist ID.");
-      const list = await getSharedWatchlist(watchlistId, userId);
-      if (!list) return insufficient(def, "Watchlist not found or access denied.");
-      return {
-        featureId: def.id,
-        slug: def.slug,
-        status: "success",
-        data: list,
-        labels: [trustBadge("user")],
-        ranAt: new Date().toISOString(),
-      };
+      try {
+        const list = await getSharedWatchlist(watchlistId, userId);
+        if (!list) return insufficient(def, "Watchlist not found or access denied.");
+        return {
+          featureId: def.id,
+          slug: def.slug,
+          status: "success",
+          data: list,
+          labels: [trustBadge("user")],
+          ranAt: new Date().toISOString(),
+        };
+      } catch {
+        return insufficient(def, "Watchlist not found or access denied.");
+      }
     }
 
     if (
@@ -669,10 +752,30 @@ export async function executeFeatureService(
       def.slug === "food-pairing" ||
       def.slug === "atmosphere-mode"
     ) {
-      return unavailable(
-        def,
-        "Use AI Copilot with a connected chat model. Configure Ollama or a cloud provider in Open Models.",
-      );
+      const movieId = Number(input.movieId ?? favorites[0] ?? history[0]);
+      if (!movieId) return insufficient(def, "Select a movie for context.");
+      const spoilerLevel =
+        def.slug === "ending-explanation" ? "moderate" : def.slug === "spoiler-shield" ? "none" : "light";
+      const briefing = await buildMovieBriefing(movieId, spoilerLevel);
+      const prompts: Record<string, string[]> = {
+        "debate-mode": ["Which character decision is most defensible?", "Is the ending earned or convenient?"],
+        "discussion-starter": ["What theme would you argue is central?", "Who changed the most by the final scene?"],
+        "food-pairing": ["Pair with comfort food for a cozy watch.", "Match cuisine to the film's primary setting if known."],
+        "atmosphere-mode": ["Dim lights, phone away — match runtime to your energy.", "Consider soundtrack listening after credits."],
+      };
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: briefing ? "success" : "insufficient_data",
+        data: {
+          briefing,
+          prompts: prompts[def.slug] ?? ["Explore this title in Copilot for a generative deep dive."],
+          copilotPath: "/copilot",
+          note: "Metadata briefing included — connect a chat model in Copilot for generative expansion.",
+        },
+        labels: [trustBadge("metadata"), trustBadge("ai_interpretation")],
+        ranAt: new Date().toISOString(),
+      };
     }
 
     if (def.slug === "cinema-agent") {
@@ -704,6 +807,22 @@ export async function executeFeatureService(
         ranAt: new Date().toISOString(),
       };
     }
+
+    const planned = await tryExecutePlannedFeature(def, input, {
+      userId,
+      watchlist,
+      favorites,
+      history,
+    });
+    if (planned) return planned;
+
+    const extended = await tryExecuteExtendedFeature(def, input, {
+      userId,
+      watchlist,
+      favorites,
+      history,
+    });
+    if (extended) return extended;
 
     return unavailable(def, "This capability is not implemented yet.");
   } catch (error) {

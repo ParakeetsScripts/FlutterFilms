@@ -2,10 +2,11 @@
 
 import { TrustBadge } from "@/components/ai/TrustBadge";
 import type { IntelligenceFeature } from "@/lib/ai/features/registry";
+import { defaultInputForSlug } from "@/lib/ai/features/feature-inputs";
 import type { FeatureHealth, FeatureRunResult } from "@/lib/ai/features/types";
 import { useUserLibrary } from "@/components/providers/UserLibraryProvider";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Props = {
   slug: string;
@@ -18,8 +19,13 @@ export function FeatureDetail({ slug }: Props) {
   const [result, setResult] = useState<FeatureRunResult | null>(null);
   const [query, setQuery] = useState("");
   const [movieId, setMovieId] = useState("");
+  const [compareMovieId, setCompareMovieId] = useState("");
+  const [personId, setPersonId] = useState("");
+  const [collectionId, setCollectionId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const defaults = useMemo(() => defaultInputForSlug(slug), [slug]);
 
   useEffect(() => {
     fetch(`/api/ai/features/${slug}`)
@@ -30,14 +36,28 @@ export function FeatureDetail({ slug }: Props) {
       });
   }, [slug]);
 
+  useEffect(() => {
+    if (!query && typeof defaults.query === "string") setQuery(defaults.query);
+    if (!movieId) {
+      const seed = favorites[0] ?? history[0] ?? defaults.movieId;
+      if (seed) setMovieId(String(seed));
+    }
+    if (!compareMovieId && defaults.compareMovieId) setCompareMovieId(String(defaults.compareMovieId));
+    if (!personId && defaults.personId) setPersonId(String(defaults.personId));
+    if (!collectionId && defaults.collectionId) setCollectionId(String(defaults.collectionId));
+  }, [defaults, favorites, history, query, movieId, compareMovieId, personId, collectionId]);
+
   async function runFeature() {
     if (!feature?.hasService) return;
     setLoading(true);
     setError(null);
     try {
-      const input: Record<string, unknown> = {};
+      const input: Record<string, unknown> = { ...defaults };
       if (query.trim()) input.query = query.trim();
       if (movieId.trim()) input.movieId = Number(movieId);
+      if (compareMovieId.trim()) input.compareMovieId = Number(compareMovieId);
+      if (personId.trim()) input.personId = Number(personId);
+      if (collectionId.trim()) input.collectionId = Number(collectionId);
       const response = await fetch(`/api/ai/features/${slug}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -63,6 +83,14 @@ export function FeatureDetail({ slug }: Props) {
   }
 
   const canRun = feature.hasService && feature.status !== "planned";
+  const needsQuery = typeof defaults.query === "string";
+  const needsPerson = defaults.personId != null;
+  const needsCollection = defaults.collectionId != null;
+  const needsCompare = defaults.compareMovieId != null;
+  const routeHint =
+    result?.data && typeof result.data === "object" && result.data !== null && "route" in result.data
+      ? String((result.data as { route: string }).route)
+      : null;
 
   return (
     <div className="space-y-8">
@@ -116,25 +144,63 @@ export function FeatureDetail({ slug }: Props) {
       {canRun ? (
         <section className="rounded-xl border border-[var(--line)] p-4">
           <h2 className="text-sm font-medium">Run feature</h2>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
+            Uses your library when fields are empty. TMDB IDs are pre-filled from your favorites when available.
+          </p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <label className="block text-sm">
-              <span className="text-[var(--text-muted)]">Query / description</span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
-                placeholder="Optional search text"
-              />
-            </label>
+            {needsQuery ? (
+              <label className="block text-sm">
+                <span className="text-[var(--text-muted)]">Query / description</span>
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
+                  placeholder="Search text"
+                />
+              </label>
+            ) : null}
             <label className="block text-sm">
               <span className="text-[var(--text-muted)]">Movie ID (TMDB)</span>
               <input
                 value={movieId}
                 onChange={(e) => setMovieId(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
-                placeholder="e.g. 13885"
+                placeholder="e.g. 550"
               />
             </label>
+            {needsCompare ? (
+              <label className="block text-sm">
+                <span className="text-[var(--text-muted)]">Compare movie ID</span>
+                <input
+                  value={compareMovieId}
+                  onChange={(e) => setCompareMovieId(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
+                  placeholder="e.g. 680"
+                />
+              </label>
+            ) : null}
+            {needsPerson ? (
+              <label className="block text-sm">
+                <span className="text-[var(--text-muted)]">Person ID (TMDB)</span>
+                <input
+                  value={personId}
+                  onChange={(e) => setPersonId(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
+                  placeholder="e.g. 525"
+                />
+              </label>
+            ) : null}
+            {needsCollection ? (
+              <label className="block text-sm">
+                <span className="text-[var(--text-muted)]">Collection / franchise ID</span>
+                <input
+                  value={collectionId}
+                  onChange={(e) => setCollectionId(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
+                  placeholder="e.g. 9485"
+                />
+              </label>
+            ) : null}
           </div>
           <button
             type="button"
@@ -161,6 +227,11 @@ export function FeatureDetail({ slug }: Props) {
               <TrustBadge key={label.kind} kind={label.kind} />
             ))}
           </div>
+          {routeHint ? (
+            <Link href={routeHint} className="btn btn-ghost mt-3 text-sm">
+              Continue in dedicated UI →
+            </Link>
+          ) : null}
           {result.explanation?.length ? (
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[var(--text-secondary)]">
               {result.explanation.map((line) => (

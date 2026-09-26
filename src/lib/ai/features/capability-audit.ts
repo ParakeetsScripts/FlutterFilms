@@ -17,34 +17,33 @@ const STUB_ERROR_PATTERNS = [
   /must be performed through the authenticated ui/i,
 ] as const;
 
+import { FEATURE_CATALOG } from "./catalog";
+import { executionModeForSlug } from "./feature-execution-modes";
+import { implementationTierForSlug, tierAllowsLive } from "./feature-implementation-quality";
+import { hasAcceptanceTest } from "./feature-test-registry";
+
+function buildHonestStatusCaps(): Partial<Record<string, "beta" | "planned" | "degraded">> {
+  const caps: Partial<Record<string, "beta" | "planned" | "degraded">> = {
+    "poster-generator": "beta",
+    "semantic-catalog": "beta",
+    "vibe-search": "beta",
+    "scene-memory": "beta",
+    "nl-filters": "beta",
+  };
+  for (const entry of FEATURE_CATALOG) {
+    const tier = implementationTierForSlug(entry.slug);
+    if (!tierAllowsLive(tier) || !hasAcceptanceTest(entry.slug)) {
+      caps[entry.slug] = "beta";
+    }
+    if (executionModeForSlug(entry.slug) === "GENERATIVE_AI") {
+      caps[entry.slug] = "beta";
+    }
+  }
+  return caps;
+}
+
 /** Features with real execution but intentional limitations — cap LIVE status. */
-export const HONEST_STATUS_CAPS: Partial<Record<string, "beta" | "planned" | "degraded">> = {
-  "poster-generator": "beta",
-  "watchlist-poster": "beta",
-  "movie-night-card": "beta",
-  "franchise-graphic": "beta",
-  "comparison-graphic": "beta",
-  "semantic-catalog": "beta",
-  "scene-memory": "beta",
-  "visual-description": "beta",
-  "narrative-structure": "beta",
-  "pacing-search": "beta",
-  "character-arc": "beta",
-  "relationship-search": "beta",
-  "nl-filters": "beta",
-  "vibe-search": "beta",
-  "regret-predictor": "beta",
-  "spoiler-shield": "beta",
-  "ending-explanation": "beta",
-  "debate-mode": "beta",
-  "discussion-starter": "beta",
-  "food-pairing": "beta",
-  "atmosphere-mode": "beta",
-  "weekly-brief": "beta",
-  "cinema-newsletter": "beta",
-  "trailer-concept": "beta",
-  "review-assistant": "beta",
-};
+export const HONEST_STATUS_CAPS: Partial<Record<string, "beta" | "planned" | "degraded">> = buildHonestStatusCaps();
 
 export const FEATURE_LIMITATION_NOTES: Partial<Record<string, string>> = {
   "poster-generator": "Deterministic SVG concept card — not a generative image model.",
@@ -94,6 +93,26 @@ export function evaluateFeatureCapabilities(def: FeatureDefinition): FeatureCapa
     hasRealDataPath,
     hasExecutionPath: def.hasService,
   };
+}
+
+export function isGenericHandlerResult(result: FeatureRunResult): boolean {
+  const text = JSON.stringify(result.data ?? {}) + (result.error ?? "");
+  if (result.data && typeof result.data === "object") {
+    const data = result.data as Record<string, unknown>;
+    if (data.route && !data.primary && !data.chronological && !data.dna && !data.results) {
+      return true;
+    }
+    if (Array.isArray(data.prompts) && data.briefing && Object.keys(data).length <= 4) {
+      return true;
+    }
+  }
+  const GENERIC_OUTPUT_PATTERNS = [
+    /metadata briefing included/i,
+    /connect a chat model in Copilot/i,
+    /Use Tonight for constraint-aware picks/i,
+    /Open a movie room to analyze votes/i,
+  ] as const;
+  return GENERIC_OUTPUT_PATTERNS.some((p) => p.test(text));
 }
 
 export function isStubFeatureResult(result: FeatureRunResult): boolean {

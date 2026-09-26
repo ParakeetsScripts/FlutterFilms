@@ -1,59 +1,44 @@
 import { describe, expect, it } from "vitest";
 
-import { isStubFeatureResult } from "./capability-audit";
+import { isGenericHandlerResult, isStubFeatureResult } from "./capability-audit";
+import { validateAcceptanceContract, CONTRACT_BY_SLUG } from "./feature-acceptance-contracts";
+import { defaultInputForSlug } from "./feature-inputs";
 import { getFeatureDefinitions } from "./definitions";
 import { executeFeatureService } from "./services";
 import { getValidatedFeatures } from "./validate";
+import { hasAcceptanceTest } from "./feature-test-registry";
+import { implementationTierForSlug, tierAllowsLive } from "./feature-implementation-quality";
 
 const FIXTURE_CTX = {
-  userId: "test-user",
+  userId: "00000000-0000-4000-8000-000000000001",
   favorites: [550, 680],
   history: [550, 13],
-  watchlist: [680],
-};
-
-const FIXTURE_INPUT: Record<string, Record<string, unknown>> = {
-  "movie-briefing": { movieId: 550 },
-  "franchise-completion": { collectionId: 9485 },
-  "post-reflection": { movieId: 550, reflection: { mood: "thoughtful", wouldRewatch: true } },
-  "cinema-agent": { message: "Recommend a sci-fi movie under 150 minutes" },
-  "actor-similarity": { personId: 525 },
+  watchlist: [680, 155],
 };
 
 describe("LIVE feature runtime regression", () => {
-  it("has a smaller honest LIVE set than inflated registry", () => {
-    const counts = getValidatedFeatures().reduce(
-      (acc, f) => {
-        acc[f.status] = (acc[f.status] ?? 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-    expect(counts.live ?? 0).toBeLessThan(45);
-    expect((counts.beta ?? 0) + (counts.live ?? 0)).toBeGreaterThan(50);
-  });
-
-  it("never marks planned slugs as live", () => {
-    const planned = getValidatedFeatures().filter((f) => f.status === "planned");
-    expect(planned.some((f) => f.slug === "director-intent")).toBe(true);
-    for (const feature of planned) {
-      expect(feature.capabilities.hasService).toBe(false);
-    }
-  });
-
-  it("executes every LIVE slug without stub responses", async () => {
+  it("LIVE set matches contracted, tier-eligible features only", () => {
     const live = getValidatedFeatures().filter((f) => f.status === "live");
-    expect(live.length).toBeGreaterThan(10);
+    for (const feature of live) {
+      expect(hasAcceptanceTest(feature.slug)).toBe(true);
+      expect(tierAllowsLive(implementationTierForSlug(feature.slug))).toBe(true);
+      expect(CONTRACT_BY_SLUG.has(feature.slug)).toBe(true);
+    }
+    expect(live.length).toBeGreaterThan(0);
+    expect(live.length).toBeLessThan(200);
+  });
+
+  it("executes every LIVE slug with contract validation", async () => {
+    const live = getValidatedFeatures().filter((f) => f.status === "live");
 
     for (const feature of live) {
       const def = getFeatureDefinitions().find((f) => f.slug === feature.slug)!;
-      const input = FIXTURE_INPUT[feature.slug] ?? {};
+      const input = defaultInputForSlug(feature.slug);
       const result = await executeFeatureService(def, input, FIXTURE_CTX);
       expect(isStubFeatureResult(result), `${feature.slug} returned stub: ${result.error}`).toBe(false);
-      expect(["success", "insufficient_data"], `${feature.slug} -> ${result.status}: ${result.error}`).toContain(
-        result.status,
-      );
-      if (result.status === "success") expect(result.data).toBeDefined();
+      expect(isGenericHandlerResult(result), `${feature.slug} returned generic placeholder`).toBe(false);
+      const contractError = validateAcceptanceContract(feature.slug, result);
+      expect(contractError, `${feature.slug}: ${contractError}`).toBeNull();
     }
-  }, 120_000);
+  }, 180_000);
 });

@@ -1,5 +1,8 @@
 import { evaluateFeatureCapabilities, applyHonestStatusCap, FEATURE_LIMITATION_NOTES, resolveApiPath, resolveUiPath } from "./capability-audit";
 import { getFeatureDefinitions } from "./definitions";
+import { executionModeForSlug } from "./feature-execution-modes";
+import { implementationTierForSlug, tierAllowsLive } from "./feature-implementation-quality";
+import { hasAcceptanceTest } from "./feature-test-registry";
 import type { FeatureDefinition, FeatureHealthStatus } from "./types";
 
 export type ValidatedFeature = FeatureDefinition & {
@@ -61,14 +64,27 @@ export function validateFeatureStatus(def: FeatureDefinition): ValidatedFeature 
 
   const partialReady = capabilities.hasService && (capabilities.hasApi || capabilities.hasUi);
 
+  const tier = implementationTierForSlug(def.slug);
+  const mode = executionModeForSlug(def.slug);
+
   if (!capabilities.hasService) {
     status = "planned";
-  } else if (coreReady && blockers.length === 0) {
+  } else if (coreReady && blockers.length === 0 && tierAllowsLive(tier) && hasAcceptanceTest(def.slug)) {
     status = "live";
   } else if (partialReady) {
     status = "beta";
   } else {
     status = "planned";
+  }
+
+  if (mode === "GENERATIVE_AI" && def.fallbackBehavior !== "unavailable") {
+    notes.push("Generative mode requires connected model for full output; metadata fallback may apply");
+  }
+  if (!tierAllowsLive(tier)) {
+    notes.push(`Implementation tier: ${tier} — not promoted to LIVE without distinct acceptance contract`);
+  }
+  if (!hasAcceptanceTest(def.slug) && def.hasService) {
+    notes.push("No registered acceptance contract — add entry to feature-acceptance-contracts.ts");
   }
 
   const validated = applyHonestStatusCap({

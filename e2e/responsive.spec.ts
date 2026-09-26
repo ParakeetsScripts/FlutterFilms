@@ -37,14 +37,21 @@ for (const route of ROUTES) {
 }
 
 test("homepage hero CTA visible", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: /what do you feel like watching/i })).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByRole("button", { name: /start discovering/i })).toBeVisible();
 });
 
 test("sign in navigates to login", async ({ page, viewport }) => {
-  test.skip(Boolean(viewport && viewport.width < 900), "Desktop auth link only");
   await page.goto("/");
-  await page.getByRole("link", { name: /^sign in$/i }).click();
+  if (viewport && viewport.width < 900) {
+    await page.getByRole("button", { name: /^more$/i }).click();
+    await page.getByRole("dialog", { name: "More destinations" }).getByRole("link", { name: /^sign in$/i }).click();
+  } else {
+    await page.getByRole("link", { name: /^sign in$/i }).click();
+  }
   await expect(page).toHaveURL(/\/login/);
   await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
 });

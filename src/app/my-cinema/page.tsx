@@ -21,7 +21,7 @@ export default function MyCinemaPage() {
         <Link href="/my-cinema/interview" className="btn btn-secondary">AI Movie Interview</Link>
         <Link href="/intelligence/discover" className="btn btn-secondary">Discovery Lab</Link>
         <Link href="/copilot" className="btn btn-primary">Cinema Agent</Link>
-        <Link href="/intelligence" className="btn btn-ghost">All 100 features</Link>
+        <Link href="/intelligence" className="btn btn-ghost">All 200 features</Link>
       </div>
 
       <section className="mt-12">

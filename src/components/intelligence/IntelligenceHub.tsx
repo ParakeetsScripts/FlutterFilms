@@ -81,11 +81,11 @@ export function IntelligenceHub() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="eyebrow">Cinema Intelligence Layer</p>
-            <h1 className="page-header__title">100 AI Capabilities</h1>
+            <h1 className="page-header__title">200 AI Capabilities</h1>
             <p className="page-header__subtitle">
               {stats.live} live · {stats.beta} beta · {stats.planned} planned
               {stats.degraded ? ` · ${stats.degraded} degraded` : ""}
-              — status is computed from real implementation checks, not marketing labels.
+              — LIVE requires explicit acceptance contracts and distinct implementation tiers.
             </p>
           </div>
           <button
@@ -99,33 +99,45 @@ export function IntelligenceHub() {
         </div>
       </header>
 
-      <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center">
+      <div className="mt-8 flex flex-col gap-4">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search features…"
-          className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 md:max-w-xs"
+          className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 md:max-w-md"
         />
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>{c === "all" ? "All categories" : c}</option>
-          ))}
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
-        >
-          <option value="all">All statuses</option>
-          <option value="live">Live</option>
-          <option value="beta">Beta</option>
-          <option value="planned">Planned</option>
-          <option value="degraded">Degraded</option>
-        </select>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:flex-wrap">
+          <div
+            className="intelligence-filter-chips"
+            role="tablist"
+            aria-label="Feature categories"
+          >
+            {CATEGORIES.map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="tab"
+                aria-selected={category === c}
+                className={`filter-chip ${category === c ? "is-active" : ""}`}
+                onClick={() => setCategory(c)}
+              >
+                {c === "all" ? "All" : c}
+              </button>
+            ))}
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 md:w-auto"
+            aria-label="Filter by status"
+          >
+            <option value="all">All statuses</option>
+            <option value="live">Live</option>
+            <option value="beta">Beta</option>
+            <option value="planned">Planned</option>
+            <option value="degraded">Degraded</option>
+          </select>
+        </div>
       </div>
 
       <div className="mt-10 grid gap-3 md:grid-cols-2 lg:grid-cols-3">

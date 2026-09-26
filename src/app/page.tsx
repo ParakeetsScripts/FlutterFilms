@@ -6,7 +6,7 @@ import { resolvePlayback } from "@/lib/playback/resolver";
 import { watchPath } from "@/lib/slug";
 import { TmdbConfigError, TmdbUnavailableError } from "@/lib/tmdb/client";
 
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   try {

@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/tmdb-sync",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/imdb-sync",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/provider-sync",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/health-check",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}

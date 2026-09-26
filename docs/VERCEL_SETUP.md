@@ -18,10 +18,15 @@
 | Postgres migrations | Applied (V1–V8) |
 | GitHub Actions deploy | `.github/workflows/deploy.yml` on `master` |
 | GitHub secrets | `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` |
+| Production redeploy | Live at https://flutter-films.vercel.app (CLI + Actions) |
 
-## Git integration (native Vercel ↔ GitHub)
+## Deploy on push (GitHub Actions)
 
-Native `vercel git connect` requires the [Vercel GitHub App](https://github.com/apps/vercel) to access the private repo. If install is blocked on GitHub sudo/email verification, use **GitHub Actions** (already configured) — pushes to `master` deploy production automatically.
+Pushes to `master` run [Deploy to Vercel](https://github.com/ritvik-m5/FlutterFilms/actions/workflows/deploy.yml): `vercel pull` → `vercel build --prod` → `vercel deploy --prebuilt --prod`. This replaces native Vercel Git integration when the private repo cannot grant the Vercel GitHub App access.
+
+## Git integration (native Vercel ↔ GitHub) — optional
+
+Native `vercel git connect` requires the [Vercel GitHub App](https://github.com/apps/vercel) to access the private repo. Currently blocked on GitHub **sudo / email verification** for `ritvik-m5`. GitHub Actions deploys are fully functional without this step.
 
 To finish native integration later:
 

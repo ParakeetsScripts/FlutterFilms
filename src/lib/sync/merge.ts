@@ -3,7 +3,9 @@ import { FIELD_PRIORITY } from "./field-priority";
 import type { CatalogMovie, StoredMovieRow } from "./types";
 
 function parsePayload(row: StoredMovieRow): Movie {
-  return JSON.parse(row.payload_json) as Movie;
+  const raw = row.payload_json;
+  if (typeof raw === "string") return JSON.parse(raw) as Movie;
+  return raw as Movie;
 }
 
 export function rowToCatalogMovie(row: StoredMovieRow): CatalogMovie {

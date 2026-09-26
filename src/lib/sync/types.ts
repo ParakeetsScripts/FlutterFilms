@@ -84,7 +84,7 @@ export type StoredMovieRow = {
   tmdb_vote_count: number | null;
   imdb_rating: number | null;
   imdb_vote_count: number | null;
-  payload_json: string;
+  payload_json: string | Movie;
   metadata_completeness: number | null;
   last_synced_at: string | null;
   metadata_updated_at: string | null;

@@ -49,7 +49,7 @@ export function OnboardingFlow() {
       <div className="page-container page-section max-w-2xl onboarding-complete">
         <header className="page-header">
           <h1 className="page-header__title">Your cinema profile is ready</h1>
-          <p className="page-header__subtitle">Flutter Films can now personalize your discovery.</p>
+          <p className="page-header__subtitle">FlutterFilms can now personalize your discovery.</p>
         </header>
         <div className="ai-usage-card space-y-3">
           <p><strong>{summary?.movies ?? state.favoriteMovies.length}</strong> favorite movies</p>
@@ -81,7 +81,7 @@ export function OnboardingFlow() {
       <OnboardingProgress step={step} />
       <header className="page-header">
         <h1 className="page-header__title">
-          {step === 0 && "Welcome to Flutter Films"}
+          {step === 0 && "Welcome to FlutterFilms"}
           {step === 1 && "What movies do you love?"}
           {step === 2 && "Pick your genres"}
           {step === 3 && "Favorite filmmakers"}
@@ -93,7 +93,7 @@ export function OnboardingFlow() {
           {step === 1 && `Search and select at least ${minMovies} movies. (${state.favoriteMovies.length}/${MAX_FAVORITE_MOVIES})`}
           {step === 2 && "Choose genres that match your taste."}
           {step === 3 && "Optional — search directors, actors, or writers."}
-          {step === 4 && "How should Flutter Films discover for you?"}
+          {step === 4 && "How should FlutterFilms discover for you?"}
           {step === 5 && "Confirm before we build your profile."}
         </p>
       </header>

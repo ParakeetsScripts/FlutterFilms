@@ -13,6 +13,7 @@ const TABS = [
 ];
 
 const MORE_LINKS = [
+  { href: "/about", label: "About" },
   { href: "/login", label: "Sign in" },
   { href: "/watchlists", label: "Shared lists" },
   { href: "/community", label: "Community" },

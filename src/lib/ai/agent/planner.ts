@@ -171,6 +171,6 @@ export const TOOL_SOURCE_LABELS: Record<AgentToolName, string[]> = {
   createMovieNight: ["Your lists", "AI graphic"],
   createNewsletter: ["TMDB trending", "Catalog updates"],
   getCommunityRoom: ["Shared room data"],
-  getMemories: ["Flutter Films user memory"],
-  storeMemory: ["Flutter Films user memory"],
+  getMemories: ["FlutterFilms user memory"],
+  storeMemory: ["FlutterFilms user memory"],
 };

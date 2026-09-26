@@ -53,7 +53,7 @@ export function FeedbackDialog() {
         className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
         placeholder="Tell us what worked or what didn't… (min. 10 characters)"
       />
-      <p className="text-xs text-[var(--text-secondary)]">Stored securely — used to improve Flutter Films.</p>
+      <p className="text-xs text-[var(--text-secondary)]">Stored securely — used to improve FlutterFilms.</p>
       <div className="flex gap-2">
         <button type="button" className="btn btn-primary" onClick={submit}>Submit</button>
         <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>Cancel</button>

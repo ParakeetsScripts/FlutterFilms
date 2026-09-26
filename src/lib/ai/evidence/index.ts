@@ -25,7 +25,7 @@ export async function buildEvidencePacket(input: {
 
   for (const m of movies) {
     for (const s of m.sources) {
-      sourcesUsed.add(s.source === "tmdb" ? "TMDB" : s.source === "imdb" ? "IMDb" : "Flutter Films");
+      sourcesUsed.add(s.source === "tmdb" ? "TMDB" : s.source === "imdb" ? "IMDb" : "FlutterFilms");
     }
   }
 
@@ -35,7 +35,7 @@ export async function buildEvidencePacket(input: {
     history: input.history,
     watchlist: input.watchlist,
   });
-  if (userTaste) sourcesUsed.add("Flutter Films taste profile");
+  if (userTaste) sourcesUsed.add("FlutterFilms taste profile");
 
   const blocks: string[] = [];
   const movieBlock = formatMovieEvidenceBlock(movies);

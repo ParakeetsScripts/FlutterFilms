@@ -1,7 +1,7 @@
 "use client";
 
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
-import { SITE_FULL_NAME, SITE_NAME, SITE_TAGLINE } from "@/lib/brand";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/brand";
 import { Logo } from "@/components/layout/Logo";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { ScrollToTop } from "@/components/navigation/ScrollToTop";
@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 
 const PRIMARY = [
   { href: "/", label: "Home" },
+  { href: "/about", label: "About" },
   { href: "/discover", label: "Discover" },
   { href: "/copilot", label: "AI" },
   { href: "/my-cinema", label: "My Cinema" },
@@ -160,9 +161,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {SITE_TAGLINE} Metadata from TMDB and IMDb — {SITE_NAME} does not host films.
             </p>
             <FeedbackDialog />
-            <p className="site-footer__credit">
-              <span className="site-footer__credit-name">{SITE_FULL_NAME}</span>
-            </p>
           </div>
           <FooterColumn title="Explore" links={FOOTER_EXPLORE} />
           <FooterColumn title="Social" links={FOOTER_SOCIAL} />

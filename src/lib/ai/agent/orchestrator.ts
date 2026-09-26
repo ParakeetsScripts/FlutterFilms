@@ -122,7 +122,7 @@ export async function runCinemaAgent(input: {
       label: "Saved preference",
       args: { content: persisted.content },
       result: { status: "success", id: persisted.id, content: persisted.content },
-      sources: ["Flutter Films user memory"],
+      sources: ["FlutterFilms user memory"],
     });
   }
 

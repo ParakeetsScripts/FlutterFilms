@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { movieEvidenceFromCatalog } from "./types";
 
-describe("movie evidence", () => {
-  it("keeps TMDB and IMDb ratings separate", () => {
+describe("movie evidence provenance", () => {
+  it("keeps TMDB and IMDb ratings separate with provenance", () => {
     const evidence = movieEvidenceFromCatalog({
       id: 27205,
       tmdbId: 27205,
@@ -54,7 +54,7 @@ describe("movie evidence", () => {
 
     expect(evidence.tmdb?.rating).toBe(8.4);
     expect(evidence.imdb?.rating).toBe(8.8);
-    expect(evidence.sources.some((s) => s.source === "tmdb")).toBe(true);
-    expect(evidence.sources.some((s) => s.source === "imdb")).toBe(true);
+    expect(evidence.provenance.find((p) => p.field === "tmdbRating")?.source).toBe("tmdb");
+    expect(evidence.provenance.find((p) => p.field === "imdbRating")?.source).toBe("imdb");
   });
 });

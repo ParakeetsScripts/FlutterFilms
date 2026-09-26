@@ -5,7 +5,7 @@ describe("buildCreativeAsset", () => {
   it("returns labeled SVG concept art", () => {
     const asset = buildCreativeAsset("poster", { title: "Neon Nights" });
     expect(asset.svg).toContain("Neon Nights");
-    expect(asset.disclaimer).toContain("not official");
+    expect(asset.disclaimer).toMatch(/concept|SVG|generative/i);
     expect(asset.labels[0].kind).toBe("ai_interpretation");
   });
 

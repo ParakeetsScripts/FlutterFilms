@@ -74,3 +74,53 @@ export async function saveTasteSnapshot(userId: string, dna: Record<string, unkn
     new Date().toISOString(),
   ]);
 }
+
+export async function listTasteSnapshots(userId: string, limit = 12) {
+  const db = await getDatabase();
+  const rows = await db.all<{ dna_json: string; created_at: string }>(
+    "SELECT dna_json, created_at FROM taste_snapshots WHERE user_id = ? ORDER BY created_at ASC LIMIT ?",
+    [userId, limit],
+  );
+  return rows.map((row) => ({
+    createdAt: row.created_at,
+    dna: JSON.parse(row.dna_json) as Record<string, unknown>,
+  }));
+}
+
+export type PostReflectionInput = {
+  liked?: string;
+  disliked?: string;
+  rating?: number;
+  mood?: string;
+  wouldRewatch?: boolean;
+  wouldRecommend?: boolean;
+  favoriteElement?: string;
+};
+
+export async function savePostReflection(userId: string, movieId: number, reflection: PostReflectionInput) {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  await db.run(
+    `INSERT INTO taste_signals (id, user_id, signal_key, signal_value, weight, source, created_at, updated_at)
+     VALUES (?, ?, 'reflection', ?, 1, 'post_reflection', ?, ?)
+     ON CONFLICT(user_id, signal_key, signal_value) DO UPDATE SET updated_at = excluded.updated_at`,
+    [randomUUID(), userId, JSON.stringify({ movieId, ...reflection }), now, now],
+  );
+
+  if (reflection.mood) {
+    await upsertTasteSignal(userId, {
+      signalKey: "reflection_mood",
+      signalValue: reflection.mood,
+      weight: 1,
+      source: "post_reflection",
+    });
+  }
+  if (reflection.wouldRewatch) {
+    await upsertTasteSignal(userId, {
+      signalKey: "rewatch_intent",
+      signalValue: String(movieId),
+      weight: 2,
+      source: "post_reflection",
+    });
+  }
+}

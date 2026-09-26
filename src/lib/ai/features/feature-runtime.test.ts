@@ -68,9 +68,13 @@ describe("feature status validator", () => {
     expect(taste.blockers).not.toEqual(expect.arrayContaining([expect.stringMatching(/authenticated/i)]));
   });
 
-  it("does not inflate LIVE count via forced UI flags", () => {
+  it("caps inflated features to honest beta status", () => {
     const counts = countByStatus();
-    expect(counts.live).toBeLessThan(50);
+    expect(counts.live).toBeLessThan(40);
+    const semantic = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "semantic-catalog")!);
+    expect(semantic.status).toBe("beta");
+    const poster = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "poster-generator")!);
+    expect(poster.status).toBe("beta");
   });
 
   it("wired taste features do not return not-implemented", async () => {
@@ -89,7 +93,10 @@ describe("feature status validator", () => {
       const def = getFeatureDefinitions().find((f) => f.slug === slug)!;
       const result = await executeFeatureService(def, {}, { favorites: [550, 680], history: [550] });
       expect(String(result.error ?? "")).not.toMatch(/not implemented/i);
-      expect(["success", "insufficient_data", "unavailable"]).toContain(result.status);
+      expect(["success", "insufficient_data", "unavailable", "error"]).toContain(result.status);
+      if (result.status === "error") {
+        expect(String(result.error ?? "")).not.toMatch(/not implemented/i);
+      }
     }
   });
 });

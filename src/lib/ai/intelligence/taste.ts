@@ -1,7 +1,9 @@
 import "server-only";
 
 import { getMovie } from "@/lib/tmdb/movies";
+import { getGenreList } from "@/lib/tmdb/configuration";
 import type { Movie } from "@/lib/tmdb/types";
+import { listTasteSnapshots } from "@/lib/user/taste-repository";
 import { trustBadge } from "../trust";
 
 export type TasteDna = {
@@ -61,8 +63,14 @@ export async function computeTasteDna(movieIds: number[]): Promise<TasteDna> {
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => ({ name, count, percent: Math.round((count / totalGenre) * 100) }));
 
-  const allGenres = ["Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Animation", "Thriller", "Romance"];
-  const unexploredGenres = allGenres.filter((g) => !genreCounts.has(g));
+  let allGenreNames: string[] = [];
+  try {
+    const genreList = await getGenreList();
+    allGenreNames = genreList.genres.map((g) => g.name);
+  } catch {
+    allGenreNames = [];
+  }
+  const unexploredGenres = allGenreNames.filter((g) => !genreCounts.has(g));
 
   return {
     movieCount: movies.length,
@@ -96,6 +104,40 @@ export function rewatchCandidates(movieIds: number[], favorites: number[]): numb
   return movieIds.filter((id) => favSet.has(id)).slice(0, 12);
 }
 
+export type RewatchSignalLevel = "high" | "moderate" | "low" | "insufficient_data";
+
+export function buildRewatchSignals(history: number[], favorites: number[]): Array<{
+  movieId: number;
+  level: RewatchSignalLevel;
+  reasons: string[];
+}> {
+  const favSet = new Set(favorites);
+  const historyCounts = new Map<number, number>();
+  for (const id of history) historyCounts.set(id, (historyCounts.get(id) ?? 0) + 1);
+
+  const signals: Array<{ movieId: number; level: RewatchSignalLevel; reasons: string[] }> = [];
+  for (const [movieId, count] of historyCounts) {
+    const reasons: string[] = [];
+    let level: RewatchSignalLevel = "low";
+    if (favSet.has(movieId)) {
+      reasons.push("In both watch history and favorites.");
+      level = count >= 2 ? "high" : "moderate";
+    } else if (count >= 2) {
+      reasons.push(`Appears ${count} times in watch history.`);
+      level = "moderate";
+    } else {
+      reasons.push("Single history entry without favorite signal.");
+      level = "low";
+    }
+    signals.push({ movieId, level, reasons });
+  }
+
+  return signals.sort((a, b) => {
+    const rank = { high: 3, moderate: 2, low: 1, insufficient_data: 0 };
+    return rank[b.level] - rank[a.level];
+  });
+}
+
 /** Plain-language explanations backed by real computed signals — never invented. */
 export function buildTasteExplanations(dna: TasteDna, favoritesCount = 0): string[] {
   const lines: string[] = [];
@@ -124,12 +166,90 @@ export function buildTasteExplanations(dna: TasteDna, favoritesCount = 0): strin
 }
 
 export function tasteContradictions(dna: TasteDna): string[] {
+  if (dna.movieCount < 3) return [];
+
   const notes: string[] = [];
-  const top = dna.genres[0]?.name;
-  const also = dna.genres[1]?.name;
-  if (top === "Horror" && also === "Comedy") notes.push("You gravitate toward horror and comedy — an uncommon but well-documented pairing.");
-  if (dna.avgRuntime && dna.avgRuntime > 150 && dna.genres.some((g) => g.name === "Action")) {
-    notes.push("You favor long runtimes even in action-heavy taste — prediction based on your history.");
+  const top = dna.genres[0];
+  const second = dna.genres[1];
+
+  if (top && second && top.percent >= 25 && second.percent >= 20) {
+    const slowGenres = new Set(["Drama", "Romance", "Documentary"]);
+    const fastGenres = new Set(["Action", "Thriller", "Horror"]);
+    if (slowGenres.has(top.name) && fastGenres.has(second.name)) {
+      notes.push(
+        `You frequently save ${top.name.toLowerCase()} titles (${top.count} films) while also favoring ${second.name.toLowerCase()} (${second.count} films).`,
+      );
+    }
   }
+
+  if (dna.avgRuntime && dna.avgRuntime > 140 && dna.genres.some((g) => g.name === "Action")) {
+    notes.push(`Your average runtime is ${dna.avgRuntime} minutes, including action titles — longer than typical action viewing.`);
+  }
+
+  if (dna.languages.length >= 2 && dna.genres[0]) {
+    const primaryLang = dna.languages[0];
+    const secondaryLang = dna.languages[1];
+    if (primaryLang.count >= 2 && secondaryLang.count >= 2) {
+      notes.push(
+        `You watch both ${primaryLang.code} and ${secondaryLang.code} language films while leaning toward ${dna.genres[0].name}.`,
+      );
+    }
+  }
+
   return notes;
+}
+
+export async function buildTasteEvolutionTimeline(userId: string) {
+  let snapshots: Awaited<ReturnType<typeof listTasteSnapshots>> = [];
+  try {
+    snapshots = await listTasteSnapshots(userId);
+  } catch {
+    snapshots = [];
+  }
+  if (snapshots.length < 2) {
+    return {
+      status: "insufficient_data" as const,
+      message: "Taste evolution is still building — need at least two taste snapshots.",
+      timeline: [],
+    };
+  }
+
+  return {
+    status: "success" as const,
+    timeline: snapshots.map((snap) => ({
+      at: snap.createdAt,
+      topGenres: (snap.dna.genres as Array<{ name: string; count: number }> | undefined)?.slice(0, 5) ?? [],
+      movieCount: (snap.dna.movieCount as number | undefined) ?? null,
+    })),
+    labels: [trustBadge("user"), trustBadge("metadata")],
+  };
+}
+
+export async function buildMovieDnaProfile(movieId: number) {
+  const movie = await getMovie(movieId);
+  if (!movie) return null;
+
+  return {
+    movieId: movie.id,
+    title: movie.title,
+    dimensions: {
+      genres: movie.genres.map((g) => g.name),
+      keywords: movie.keywords?.map((k) => k.name) ?? [],
+      era: movie.year ? `${Math.floor(movie.year / 10) * 10}s` : null,
+      runtime: movie.runtime,
+      language: movie.originalLanguage,
+      countries: movie.productionCountries.map((c) => c.name),
+      cast: movie.credits.cast.slice(0, 6).map((c) => c.name),
+      crew: movie.credits.crew
+        .filter((c) => c.job === "Director")
+        .slice(0, 3)
+        .map((c) => c.name),
+      ratings: {
+        tmdb: movie.tmdbRating ?? movie.voteAverage,
+        imdb: movie.imdbRating,
+      },
+    },
+    labels: [trustBadge("metadata")],
+    analysisNote: "Theme/pacing/mood interpretations are AI analysis — metadata above is verified.",
+  };
 }

@@ -27,17 +27,17 @@ This audit traced routes, APIs, feature registry entries, AI services, TMDB/IMDb
 
 ---
 
-## Status counts (post-fix validator)
+## Status counts
 
-| Status   | Count |
-|----------|------:|
-| LIVE     | 45    |
-| BETA     | 39    |
-| PLANNED  | 16    |
-| DEGRADED | 0     |
-| ERROR    | 0     |
+| Status | Before (inflated) | After (honest) |
+|--------|------------------:|---------------:|
+| LIVE   | 45                | **39**         |
+| BETA   | 39                | **45**         |
+| PLANNED| 16                | 16             |
 
-> **Note:** LIVE count is still high because many features share real recommendation/briefing/taste services. Each LIVE slug should be verified independently — registry count is not marketing proof.
+Demoted to BETA: semantic search family, poster/creative SVG features, vibe search, chat-dependent partial features.
+
+> LIVE count decreased intentionally — honest status is the goal.
 
 ---
 

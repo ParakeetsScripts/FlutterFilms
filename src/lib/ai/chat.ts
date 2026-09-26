@@ -20,6 +20,7 @@ export async function runCopilotChat(input: {
   history?: number[];
   watchlist?: number[];
   movieIds?: number[];
+  userId?: string | null;
 }) {
   const userMessages = input.messages.filter((m) => m.role === "user");
   const lastUser = userMessages[userMessages.length - 1]?.content ?? "";
@@ -33,6 +34,7 @@ export async function runCopilotChat(input: {
     history: input.history,
     watchlist: input.watchlist,
     movieIds: input.movieIds,
+    userId: input.userId,
   });
   const messages: ChatMessage[] = [{ role: "system", content: systemContent }, ...input.messages];
 

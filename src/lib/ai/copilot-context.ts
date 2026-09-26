@@ -1,7 +1,7 @@
 import "server-only";
 
 import { SITE_FULL_NAME, SITE_NAME } from "@/lib/brand";
-import { buildEvidencePacket } from "./context";
+import { buildEvidencePacket } from "./evidence";
 
 import type { SpoilerLevel } from "./intelligence/briefing";
 import { buildAgentSystemPrompt, type AgentMemory, type InterviewProfile } from "./intelligence/agent";
@@ -31,6 +31,7 @@ export async function buildCopilotSystemPrompt(
     history?: number[];
     watchlist?: number[];
     movieIds?: number[];
+    userId?: string | null;
   } = {},
 ): Promise<string> {
   const query = userQuery.trim();
@@ -41,6 +42,7 @@ export async function buildCopilotSystemPrompt(
   try {
     const packet = await buildEvidencePacket({
       query,
+      userId: options.userId,
       movieIds: options.movieIds,
       favorites: options.favorites,
       history: options.history,

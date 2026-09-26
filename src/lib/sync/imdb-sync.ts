@@ -98,6 +98,8 @@ export async function runImdbSync(): Promise<SyncJobResult> {
 
     if (!linked.length) {
       result.durationMs = Date.now() - started;
+      result.error =
+        "IMDb sync completed with 0 matches — catalog has no movies with imdb_id yet. Run TMDB sync first.";
       await finishSyncJob(result);
       return result;
     }

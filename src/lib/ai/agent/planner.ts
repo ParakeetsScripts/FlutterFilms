@@ -10,6 +10,7 @@ export function planAgentTools(message: string): PlannedToolCall[] {
   const text = message.trim();
   const lower = text.toLowerCase();
   const planned: PlannedToolCall[] = [];
+  const idMatch = text.match(/\btmdb\s*(?:id\s*)?(\d{3,})\b/i) ?? text.match(/\bmovie\s*#?(\d{3,})\b/i);
 
   if (/marathon|weekend\b/.test(lower)) {
     planned.push({ name: "buildMarathon", args: {}, label: "Building weekend marathon…" });
@@ -19,8 +20,8 @@ export function planAgentTools(message: string): PlannedToolCall[] {
     planned.push({ name: "createNewsletter", args: {}, label: "Loading catalog updates…" });
   } else if (/movie night|invite|invitation\b/.test(lower)) {
     planned.push({ name: "createMovieNight", args: { title: "Movie Night" }, label: "Preparing movie night card…" });
-  } else if (/poster|artwork|image\b/.test(lower)) {
-    planned.push({ name: "generateImage", args: { title: text.slice(0, 80) }, label: "Generating AI artwork…" });
+  } else   if (/poster|artwork|concept card\b/.test(lower)) {
+    planned.push({ name: "generateImage", args: { title: text.slice(0, 80) }, label: "Building poster concept card…" });
   }
 
   if (/recommend|suggest|pick|tonight|what should i watch|give me\b/.test(lower)) {
@@ -36,15 +37,52 @@ export function planAgentTools(message: string): PlannedToolCall[] {
     planned.push({
       name: "searchSemanticCatalog",
       args: { query: text, kind: "scene" },
-      label: "Searching scene memory…",
+      label: "Smart catalog search (scene cues)…",
     });
+  }
+
+  const personMatch = text.match(/\bperson\s*#?(\d{3,})\b/i) ?? text.match(/\bactor\s*#?(\d{3,})\b/i);
+  if (personMatch) {
+    planned.push({ name: "getPerson", args: { personId: Number(personMatch[1]) }, label: "Loading person filmography…" });
+  }
+
+  const collectionMatch = text.match(/\b(collection|franchise)\s*#?(\d{3,})\b/i);
+  if (collectionMatch) {
+    planned.push({
+      name: "getFranchise",
+      args: { collectionId: Number(collectionMatch[2]) },
+      label: "Loading franchise collection…",
+    });
+  }
+
+  if (/add to watchlist|save to watchlist|put on watchlist\b/.test(lower)) {
+    const movieId = idMatch ? Number(idMatch[1]) : undefined;
+    if (movieId) {
+      planned.push({ name: "createWatchlistEntry", args: { movieId }, label: "Adding to watchlist…" });
+    }
+  }
+  if (/remove from watchlist|delete from watchlist\b/.test(lower) && idMatch) {
+    planned.push({ name: "removeWatchlistEntry", args: { movieId: Number(idMatch[1]) }, label: "Removing from watchlist…" });
+  }
+  if (/more like this|less like this|not interested\b/.test(lower) && idMatch) {
+    const feedback = /less like|not interested/.test(lower) ? "less_like_this" : "more_like_this";
+    planned.push({
+      name: "createRecommendationFeedback",
+      args: { movieId: Number(idMatch[1]), feedback },
+      label: "Recording recommendation feedback…",
+    });
+  }
+  if (/room code|movie room\b/.test(lower)) {
+    const codeMatch = text.match(/\b([a-f0-9]{8})\b/i);
+    if (codeMatch) {
+      planned.push({ name: "getCommunityRoom", args: { code: codeMatch[1] }, label: "Loading room state…" });
+    }
   }
 
   if (/search|find|look for|show me\b/.test(lower) && !planned.some((p) => p.name === "searchByVibe")) {
     planned.push({ name: "searchMovies", args: { query: text }, label: "Searching movie database…" });
   }
 
-  const idMatch = text.match(/\btmdb\s*(?:id\s*)?(\d{3,})\b/i) ?? text.match(/\bmovie\s*#?(\d{3,})\b/i);
   if (idMatch) {
     planned.push({ name: "getMovie", args: { movieId: Number(idMatch[1]) }, label: "Loading movie details…" });
   }
@@ -98,8 +136,8 @@ export const TOOL_SOURCE_LABELS: Record<AgentToolName, string[]> = {
   findWhereToWatch: ["TMDB watch providers"],
   getFranchise: ["TMDB collection"],
   getFeature: ["Feature registry"],
-  searchSemanticCatalog: ["Catalog search", "AI interpretation"],
-  generateImage: ["AI-generated artwork"],
+  searchSemanticCatalog: ["Smart catalog search", "TMDB metadata"],
+  generateImage: ["Poster concept builder"],
   generateVideo: ["Video provider"],
   createMovieNight: ["Your lists", "AI graphic"],
   createNewsletter: ["TMDB trending", "Catalog updates"],

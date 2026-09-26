@@ -35,12 +35,12 @@ export function buildCreativeAsset(
 
   const label =
     kind === "poster"
-      ? "AI concept poster — not official artwork"
+      ? "Poster concept card (deterministic SVG — not a generative image model)"
       : kind === "watchlist_poster"
-        ? "AI watchlist visual — fan concept"
+        ? "Watchlist concept card (SVG template)"
         : kind === "movie_night_card"
-          ? "AI movie night invitation"
-          : "AI-generated graphic";
+          ? "Movie night concept card (SVG template)"
+          : "Concept graphic (SVG template)";
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">

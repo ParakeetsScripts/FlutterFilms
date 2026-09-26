@@ -63,9 +63,11 @@ export async function getReleaseChecks(): Promise<ReleaseCheck[]> {
   const aiCloud = env("OPENAI_API_KEY") || env("AI_OPENAI_API_KEY");
   checks.push({
     id: "ai",
-    label: "AI (cloud)",
+    label: "AI (cloud OpenAI)",
     status: aiCloud ? "READY" : "WARNING",
-    detail: aiCloud ? "Cloud AI configured." : "Optional — features degrade without cloud AI.",
+    detail: aiCloud
+      ? "OPENAI_API_KEY set — OpenAI adapter path available when an OpenAI model is enabled."
+      : "Not configured — Copilot uses local models only.",
   });
   checks.push({
     id: "local-ai",

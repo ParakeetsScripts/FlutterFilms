@@ -7,13 +7,19 @@ import { analyzePerson, findSimilarPeople } from "../intelligence/people";
 import { runRecommendation, type RecommendMode } from "../intelligence/recommendations";
 import { semanticSearch } from "../intelligence/semantic-search";
 import { groupPick, tasteIntersection, tasteMatchPercent } from "../intelligence/social";
+import { runAgentTools } from "../agent/run";
+import { buildEvidencePacket } from "../evidence";
 import {
+  buildMovieDnaProfile,
   buildPersonalityCard,
+  buildRewatchSignals,
+  buildTasteEvolutionTimeline,
   buildTasteExplanations,
   computeTasteDna,
   rewatchCandidates,
   tasteContradictions,
 } from "../intelligence/taste";
+import { savePostReflection, saveTasteSnapshot } from "@/lib/user/taste-repository";
 import { analyzeFranchise, compareFranchises, findSpinOffs } from "../intelligence/franchise";
 import { buildWeeklyBrief } from "../intelligence/weekly-brief";
 import { searchSceneMemory } from "../intelligence/scene-memory";
@@ -109,6 +115,7 @@ export async function executeFeatureService(
   const watchlist = ctx.watchlist ?? [];
   const favorites = ctx.favorites ?? [];
   const history = ctx.history ?? [];
+  const userId = ctx.userId ?? null;
 
   try {
     if (def.slug === "vibe-search" || def.slug === "nl-filters") {
@@ -187,8 +194,8 @@ export async function executeFeatureService(
 
     if (def.slug === "shared-watchlists") {
       const watchlistId = String(input.watchlistId ?? "");
-      const userId = ctx.userId;
-      if (!userId || !watchlistId) return unavailable(def, "Sign in and provide watchlist ID.");
+      if (!userId) return unavailable(def, "Sign in required for this feature.");
+      if (!watchlistId) return insufficient(def, "Provide a watchlist ID.");
       const list = await getSharedWatchlist(watchlistId, userId);
       if (!list) return insufficient(def, "Watchlist not found or access denied.");
       return {
@@ -369,18 +376,33 @@ export async function executeFeatureService(
         };
       }
       if (def.slug === "rewatch-probability") {
+        const signals = buildRewatchSignals(history, favorites);
         const candidates = rewatchCandidates(history, favorites);
         return {
           featureId: def.id,
           slug: def.slug,
-          status: candidates.length ? "success" : "insufficient_data",
-          data: { candidateIds: candidates, dna },
-          explanation: candidates.length
-            ? [`${candidates.length} titles in your history are also favorited — strong rewatch signals.`]
-            : ["No overlap between history and favorites yet."],
+          status: signals.length ? "success" : "insufficient_data",
+          data: { signals, candidateIds: candidates, dna, methodology: "Ordinal signals from history+favorites overlap — not a calibrated probability." },
+          explanation: signals.length
+            ? signals.slice(0, 3).map((s) => `Movie ${s.movieId}: ${s.level} rewatch signal — ${s.reasons.join(" ")}`)
+            : ["No watch history yet."],
           labels: [trustBadge("user")],
           ranAt: new Date().toISOString(),
         };
+      }
+      if (def.slug === "movie-dna") {
+        const movieId = Number(input.movieId);
+        if (movieId) {
+          const profile = await buildMovieDnaProfile(movieId);
+          return {
+            featureId: def.id,
+            slug: def.slug,
+            status: profile ? "success" : "insufficient_data",
+            data: { profile, userDna: dna },
+            labels: [trustBadge("metadata"), trustBadge("user")],
+            ranAt: new Date().toISOString(),
+          };
+        }
       }
       return {
         featureId: def.id,
@@ -413,16 +435,30 @@ export async function executeFeatureService(
     }
 
     if (def.slug === "taste-evolution") {
+      if (userId) {
+        const timeline = await buildTasteEvolutionTimeline(userId);
+        if (timeline.status === "success") {
+          return {
+            featureId: def.id,
+            slug: def.slug,
+            status: "success",
+            data: timeline,
+            labels: timeline.labels ?? [trustBadge("user")],
+            ranAt: new Date().toISOString(),
+          };
+        }
+      }
       if (history.length < 3) {
-        return insufficient(def, "Watch at least 3 movies to build a taste evolution timeline.");
+        return insufficient(def, "Taste evolution is still building — watch more films or save taste snapshots.");
       }
       const dna = await computeTasteDna([...favorites, ...history]);
+      if (userId) await saveTasteSnapshot(userId, dna as unknown as Record<string, unknown>);
       return {
         featureId: def.id,
         slug: def.slug,
         status: "success",
         data: {
-          note: "Evolution is inferred from your current library signals — timestamped watch history is limited.",
+          note: "Current taste snapshot saved — historical timeline will grow with future snapshots.",
           current: dna,
           historyDepth: history.length,
         },
@@ -440,13 +476,41 @@ export async function executeFeatureService(
         "Which character choice surprised you most?",
         "How did the ending change your reading of the opening?",
       ];
+      const reflection = input.reflection as Record<string, unknown> | undefined;
+      let saved = false;
+      if (reflection && userId) {
+        try {
+          await savePostReflection(userId, movieId, {
+            liked: reflection.liked ? String(reflection.liked) : undefined,
+            disliked: reflection.disliked ? String(reflection.disliked) : undefined,
+            rating: reflection.rating != null ? Number(reflection.rating) : undefined,
+            mood: reflection.mood ? String(reflection.mood) : undefined,
+            wouldRewatch: Boolean(reflection.wouldRewatch),
+            wouldRecommend: Boolean(reflection.wouldRecommend),
+            favoriteElement: reflection.favoriteElement ? String(reflection.favoriteElement) : undefined,
+          });
+          saved = true;
+        } catch {
+          saved = false;
+        }
+      }
       return {
         featureId: def.id,
         slug: def.slug,
         status: "success",
-        data: { prompts, movieId: briefing?.movieId, movieTitle: briefing?.movieTitle, sections: briefing?.sections?.slice(0, 2) },
+        data: {
+          prompts,
+          movieId: briefing?.movieId,
+          movieTitle: briefing?.movieTitle,
+          sections: briefing?.sections?.slice(0, 2),
+          saved,
+        },
         labels: [trustBadge("metadata"), trustBadge("ai_interpretation")],
-        explanation: ["Reflection prompts based on verified movie metadata — your answers are not stored unless you save them."],
+        explanation: [
+          saved
+            ? "Reflection saved to taste signals."
+            : "Submit reflection responses to persist them to your taste profile.",
+        ],
         ranAt: new Date().toISOString(),
       };
     }
@@ -613,25 +677,40 @@ export async function executeFeatureService(
     }
 
     if (def.slug === "cinema-agent") {
+      const message = String(input.message ?? input.query ?? "Help me discover a movie.");
+      const [agent, packet] = await Promise.all([
+        runAgentTools(message, { userId, watchlist, favorites, history }),
+        buildEvidencePacket({ query: message, userId, favorites, history, watchlist, movieIds: input.movieIds as number[] }),
+      ]);
       return {
         featureId: def.id,
         slug: def.slug,
         status: "success",
-        data: { redirect: "/copilot", message: "Cinema Agent runs in AI Copilot with grounded tool calling." },
-        labels: [trustBadge("metadata")],
-        explanation: ["Open /copilot for the full agent with TMDB catalog tools."],
+        data: {
+          tools: agent.results,
+          evidence: packet,
+          copilotPath: "/copilot",
+        },
+        labels: [trustBadge("metadata"), trustBadge("user")],
+        explanation: [
+          ...agent.sources,
+          ...packet.sourcesUsed,
+          "Generative natural-language reply continues in Copilot when a model is connected.",
+        ],
         ranAt: new Date().toISOString(),
       };
     }
 
     return unavailable(def, "This capability is not implemented yet.");
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Feature execution failed.";
+    const degraded = /temporarily unavailable|TMDB|catalog|database/i.test(message);
     return {
       featureId: def.id,
       slug: def.slug,
-      status: "error",
+      status: degraded ? "insufficient_data" : "error",
       labels: [trustBadge("metadata")],
-      error: error instanceof Error ? error.message : "Feature execution failed.",
+      error: message,
       ranAt: new Date().toISOString(),
     };
   }

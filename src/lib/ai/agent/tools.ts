@@ -13,6 +13,9 @@ import { buildCreativeAsset } from "../intelligence/creative";
 import { buildWeeklyBrief } from "../intelligence/weekly-brief";
 import { getWatchProviders } from "@/lib/tmdb/watch-providers";
 import { getIntelligenceFeature } from "../features/registry";
+import { recordRecommendationFeedback } from "../recommendations-repository";
+import { addMovieToWatchlist, removeMovieFromWatchlist } from "@/lib/user/watchlist-mutations";
+import { getRoomByCode } from "@/lib/social/rooms";
 
 export type AgentToolContext = {
   userId?: string | null;
@@ -127,14 +130,34 @@ export async function invokeAgentTool(
         title: String(args.title ?? "Movie Night"),
         movies: (args.movies as Array<{ title: string; year?: number | null }>) ?? [],
       });
-    case "createWatchlistEntry":
-    case "removeWatchlistEntry":
-    case "createRecommendationFeedback":
-    case "getCommunityRoom":
-      return {
-        status: "client_action_required",
-        message: `${name} must be performed through the authenticated UI — not fabricated by the agent.`,
-      };
+    case "createWatchlistEntry": {
+      if (!ctx.userId) return { status: "unavailable", message: "Sign in to modify your watchlist." };
+      const movieId = Number(args.movieId);
+      if (!movieId) return { error: "movieId required" };
+      const result = await addMovieToWatchlist(ctx.userId, movieId);
+      return { ...result, status: result.added ? "success" : "unchanged" };
+    }
+    case "removeWatchlistEntry": {
+      if (!ctx.userId) return { status: "unavailable", message: "Sign in to modify your watchlist." };
+      const movieId = Number(args.movieId);
+      if (!movieId) return { error: "movieId required" };
+      const result = await removeMovieFromWatchlist(ctx.userId, movieId);
+      return { ...result, status: result.removed ? "success" : "unchanged" };
+    }
+    case "createRecommendationFeedback": {
+      if (!ctx.userId) return { status: "unavailable", message: "Sign in to save recommendation feedback." };
+      const movieId = Number(args.movieId);
+      const feedback = String(args.feedback ?? "more_like_this") as import("../recommendations-repository").RecommendationFeedback;
+      if (!movieId) return { error: "movieId required" };
+      await recordRecommendationFeedback({ userId: ctx.userId, movieId, feedback, eventId: args.eventId ? String(args.eventId) : undefined });
+      return { status: "success", movieId, feedback };
+    }
+    case "getCommunityRoom": {
+      const code = String(args.code ?? args.roomCode ?? "");
+      if (!code) return { error: "room code required" };
+      const room = await getRoomByCode(code);
+      return room ?? { status: "unavailable", message: "Room not found." };
+    }
     default:
       return { error: `Unknown tool: ${name}` };
   }

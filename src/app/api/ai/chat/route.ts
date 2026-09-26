@@ -130,6 +130,7 @@ export async function POST(request: Request) {
       favorites,
       history,
       watchlist,
+      userId: session?.id,
     });
 
     if (!upstream.body) {

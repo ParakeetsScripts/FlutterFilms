@@ -1,3 +1,4 @@
+import { evaluateFeatureCapabilities, applyHonestStatusCap, FEATURE_LIMITATION_NOTES, resolveApiPath, resolveUiPath } from "./capability-audit";
 import { getFeatureDefinitions } from "./definitions";
 import type { FeatureDefinition, FeatureHealthStatus } from "./types";
 
@@ -6,24 +7,17 @@ export type ValidatedFeature = FeatureDefinition & {
   blockers: string[];
   notes: string[];
   route: string;
+  capabilities: ReturnType<typeof evaluateFeatureCapabilities>;
 };
 
-function effectiveFlags(def: FeatureDefinition) {
-  return {
-    // Generic runner: /api/ai/features/[slug]
-    hasApi: def.hasApi || Boolean(def.api) || def.hasService,
-    hasUi: def.hasUi || Boolean(def.href),
-  };
-}
-
-/** Issues that prevent LIVE status — auth is never one of these. */
-function productionBlockers(def: FeatureDefinition): string[] {
-  const flags = effectiveFlags(def);
+function productionBlockers(def: FeatureDefinition, caps: ReturnType<typeof evaluateFeatureCapabilities>): string[] {
   const issues: string[] = [];
-  if (!def.hasService) issues.push("No service implementation");
-  if (!flags.hasApi && def.hasService) issues.push("No API route");
-  if (!flags.hasUi) issues.push("No dedicated UI");
-  if (!def.hasTests) issues.push("No acceptance tests");
+  if (!caps.hasService) issues.push("No service implementation");
+  if (!caps.hasApi) issues.push("No API route");
+  if (!caps.hasUi) issues.push("No UI entry");
+  if (!caps.hasTests) issues.push("No acceptance tests");
+  if (!caps.hasRealDataPath && def.hasService) issues.push("No verified data path");
+  if (!caps.hasExecutionPath) issues.push("No execution path");
   if (def.requiredModelCapabilities.includes("chat") && def.fallbackBehavior === "unavailable") {
     issues.push("Requires chat model with no fallback");
   }
@@ -38,25 +32,36 @@ function productionBlockers(def: FeatureDefinition): string[] {
 
 function productionNotes(def: FeatureDefinition): string[] {
   const notes: string[] = [];
+  const limitation = FEATURE_LIMITATION_NOTES[def.slug];
+  if (limitation) notes.push(limitation);
   if (def.requiresAuth) notes.push("Requires authenticated session");
   if (def.requiredModelCapabilities.includes("chat") && def.fallbackBehavior !== "unavailable") {
-    notes.push("AI chat enhances experience; degrades without provider");
+    notes.push("Generative AI enhances experience; degrades without provider");
   }
-  if (def.requiredModelCapabilities.includes("image")) notes.push("Image generation requires configured provider");
+  if (def.requiredModelCapabilities.includes("image")) notes.push("Image output uses concept builder unless generative provider configured");
   if (def.requiredModelCapabilities.includes("video")) notes.push("Video generation requires configured provider");
+  const api = resolveApiPath(def);
+  if (api && !def.api) notes.push(`API: ${api}`);
   return notes;
 }
 
 export function validateFeatureStatus(def: FeatureDefinition): ValidatedFeature {
-  const blockers = productionBlockers(def);
+  const capabilities = evaluateFeatureCapabilities(def);
+  const blockers = productionBlockers(def, capabilities);
   const notes = productionNotes(def);
   let status: FeatureHealthStatus = "planned";
 
-  const flags = effectiveFlags(def);
-  const coreReady = def.hasService && flags.hasApi && flags.hasUi && def.hasTests;
-  const partialReady = def.hasService && (flags.hasApi || flags.hasUi);
+  const coreReady =
+    capabilities.hasService &&
+    capabilities.hasApi &&
+    capabilities.hasUi &&
+    capabilities.hasTests &&
+    capabilities.hasRealDataPath &&
+    capabilities.hasExecutionPath;
 
-  if (!def.hasService) {
+  const partialReady = capabilities.hasService && (capabilities.hasApi || capabilities.hasUi);
+
+  if (!capabilities.hasService) {
     status = "planned";
   } else if (coreReady && blockers.length === 0) {
     status = "live";
@@ -66,13 +71,16 @@ export function validateFeatureStatus(def: FeatureDefinition): ValidatedFeature 
     status = "planned";
   }
 
-  return {
+  const validated = applyHonestStatusCap({
     ...def,
     status,
     blockers,
     notes,
-    route: def.href ?? `/intelligence/${def.slug}`,
-  };
+    route: resolveUiPath(def) ?? `/intelligence/${def.slug}`,
+    capabilities,
+  });
+
+  return validated;
 }
 
 export function getValidatedFeatures(): ValidatedFeature[] {
@@ -89,3 +97,5 @@ export function countByStatus() {
     error: features.filter((f) => f.status === "error").length,
   };
 }
+
+export { isStubFeatureResult, evaluateFeatureCapabilities } from "./capability-audit";

@@ -36,7 +36,7 @@ export async function semanticSearch(
   kind: "scene" | "visual" | "structure" | "pacing" | "arc" | "relationship" | "general" = "general",
 ) {
   const q = query.trim();
-  let hint = "Catalog semantic search";
+  let hint = "Smart catalog search (keywords + catalog metadata — not vector embeddings)";
   let ratingGte: number | undefined;
 
   const maps: Record<string, RegExp> = {

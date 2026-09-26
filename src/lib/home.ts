@@ -54,7 +54,7 @@ export async function loadHomeData(language?: string): Promise<HomeData> {
     settled(getNowPlayingMovies()),
     settled(getUpcomingMovies()),
     settled(getTopRatedMovies()),
-    getLatestSections(),
+    settled(getLatestSections()),
     settled(discoverMovies({ genre: FEATURED_GENRES[0].id, sort: "popularity", language })),
   ]);
 
@@ -112,7 +112,7 @@ export async function loadHomeData(language?: string): Promise<HomeData> {
     {
       id: "recently-updated",
       title: "Recently Updated",
-      movies: trimRow(latest.updated),
+      movies: trimRow(latest?.updated ?? []),
       href: "/latest",
       showUpdated: true,
       empty: "No recent metadata updates yet.",

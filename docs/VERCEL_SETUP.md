@@ -22,7 +22,7 @@
 
 ## Deploy on push (GitHub Actions)
 
-Pushes to `master` run [Deploy to Vercel](https://github.com/ritvik-m5/FlutterFilms/actions/workflows/deploy.yml): `vercel pull` → `vercel build --prod` → `vercel deploy --prebuilt --prod`. This replaces native Vercel Git integration when the private repo cannot grant the Vercel GitHub App access.
+Pushes to `master` run [Deploy to Vercel](https://github.com/ritvik-m5/FlutterFilms/actions/workflows/deploy.yml): `vercel deploy --prod` (build runs on Vercel with real env vars). Do **not** use prebuilt CI builds with `vercel pull` — secrets are redacted as `[SENSITIVE]` and break SSG pages.
 
 ## Git integration (native Vercel ↔ GitHub) — optional
 

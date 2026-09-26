@@ -22,6 +22,7 @@ type LibraryContext = {
   clearPersonalization: () => void;
   addSearch: (query: string) => void;
   updateSettings: (settings: Partial<UserSettings>) => void;
+  setFavoriteIds: (movieIds: number[]) => void;
   updateContinueWatching: (item: ContinueItem) => void;
   removeContinueWatching: (movieId: number) => void;
 };
@@ -142,6 +143,10 @@ export function UserLibraryProvider({ children }: { children: React.ReactNode })
         const next = { ...settings, ...partial };
         setSettings(next);
         userStore.setSettings(next);
+      },
+      setFavoriteIds(movieIds) {
+        setFavorites(movieIds);
+        userStore.setFavorites(movieIds.map((id) => ({ movieId: id, addedAt: new Date().toISOString() })));
       },
       updateContinueWatching(item) {
         userStore.upsertContinue(item);

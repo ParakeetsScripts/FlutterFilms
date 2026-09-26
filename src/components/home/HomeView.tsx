@@ -85,7 +85,7 @@ export function HomeView({ data }: { data: HomeData; defaultPlayback?: { label: 
     },
   ].filter((s): s is NonNullable<typeof s> => Boolean(s && s.movies.length));
 
-  const showOnboardingPrompt = ready && !favorites.length && !history.length;
+  const showOnboardingPrompt = ready && !settings.onboardingCompleted && !favorites.length && !history.length;
 
   return (
     <div className="home-redesign">

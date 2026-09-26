@@ -18,6 +18,12 @@ export type LibraryItem = {
   playbackUrl?: string;
   addedAt: string;
 };
+export type DiscoveryPreferences = {
+  familiarity: "familiar" | "different";
+  energy: "low" | "balanced" | "high";
+  scope: "mainstream" | "niche" | "balanced";
+};
+
 export type UserSettings = {
   region: string;
   language: string;
@@ -29,6 +35,10 @@ export type UserSettings = {
   favoriteGenres: number[];
   preferredLanguages: string[];
   favoriteDecades: number[];
+  favoritePeople: number[];
+  discoveryPreferences: DiscoveryPreferences;
+  onboardingCompleted: boolean;
+  onboardingVersion: number;
   disablePersonalizedRows: boolean;
   privateMode: boolean;
   spoilerLevel: "none" | "light" | "moderate" | "full";
@@ -72,6 +82,10 @@ export const defaultSettings: UserSettings = {
   favoriteGenres: [],
   preferredLanguages: [],
   favoriteDecades: [],
+  favoritePeople: [],
+  discoveryPreferences: { familiarity: "familiar", energy: "balanced", scope: "balanced" },
+  onboardingCompleted: false,
+  onboardingVersion: 0,
   disablePersonalizedRows: false,
   privateMode: false,
   spoilerLevel: "none",

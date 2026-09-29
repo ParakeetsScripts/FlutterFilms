@@ -104,7 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const modKey = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
 
   return (
-    <div className={settings.tvMode ? "tv-mode" : undefined}>
+    <div className={["app-shell", settings.tvMode ? "tv-mode" : ""].filter(Boolean).join(" ")}>
       <header className={`site-header glass-surface glass-surface--nav ${scrolled ? "is-scrolled" : ""}`}>
         <div className="site-header__inner">
           <Logo />
@@ -191,7 +191,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </p>
       </footer>
 
-      <MobileNav onSearch={() => setSearchOpen(true)} />
+      <MobileNav onSearch={() => setSearchOpen(true)} searchOpen={searchOpen} />
       <ScrollToTop />
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>

@@ -23,11 +23,13 @@ describe("catalog presentation adapter", () => {
     expect(catalogQueryKey({ sort: "rating", genre: "878" })).toBe(catalogQueryKey({ genre: "878", sort: "rating" }));
   });
 
-  it("falls back to the default view for unknown stored values", () => {
+  it("falls back to the default view and migrates removed modes", () => {
     expect(parseCatalogView("archive")).toBe("archive");
-    expect(parseCatalogView("constellation")).toBe("constellation");
-    expect(parseCatalogView("orbit")).toBe("cinema");
-    expect(parseCatalogView(null)).toBe("cinema");
+    expect(parseCatalogView("grid")).toBe("grid");
+    expect(parseCatalogView("constellation")).toBe("grid");
+    expect(parseCatalogView("cinema")).toBe("grid");
+    expect(parseCatalogView("orbit")).toBe("grid");
+    expect(parseCatalogView(null)).toBe("grid");
   });
 
   it("clamps page jumps to what TMDB can serve", () => {

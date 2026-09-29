@@ -1,0 +1,192 @@
+/* ═══ FlutterFilms mobile app shell (< 900px) ═══
+   Desktop styles are untouched above this breakpoint.
+   Chrome heights are explicit — no vh hacks for tab bar clearance. */
+
+@media (max-width: 899px) {
+  :root {
+    --mobile-tab-content: 52px;
+    --mobile-tab-bar-height: calc(var(--mobile-tab-content) + env(safe-area-inset-bottom, 0px));
+    --mobile-header-content: 52px;
+    --mobile-header-height: calc(var(--mobile-header-content) + env(safe-area-inset-top, 0px));
+    --app-chrome-bottom: var(--mobile-tab-bar-height);
+    --app-chrome-top: var(--mobile-header-height);
+    --gutter: max(1rem, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  }
+
+  html {
+    overflow-x: clip;
+  }
+
+  body {
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+
+  /* Footer is a desktop sitemap — mobile uses the More sheet */
+  .site-footer {
+    display: none;
+  }
+
+  .site-main {
+    flex: 1;
+    min-width: 0;
+    padding-bottom: var(--app-chrome-bottom);
+  }
+
+  /* ── Compact top chrome ── */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    height: auto;
+    min-height: var(--mobile-header-height);
+    padding-top: env(safe-area-inset-top, 0px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .site-header.is-scrolled {
+    height: auto;
+    min-height: var(--mobile-header-height);
+  }
+
+  .site-header__inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: var(--mobile-header-content);
+    column-gap: var(--space-2);
+  }
+
+  .site-header__actions {
+    gap: var(--space-1);
+  }
+
+  .search-trigger-mobile,
+  .search-trigger,
+  .btn-header-install {
+    display: none !important;
+  }
+
+  .btn-header-auth {
+    min-height: var(--touch-min);
+    padding-inline: var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  .brand-logo__credit {
+    display: none;
+  }
+
+  /* ── Bottom tab bar — persistent app surface ── */
+  .mobile-nav {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0;
+    min-height: var(--mobile-tab-bar-height);
+    padding:
+      6px max(4px, env(safe-area-inset-left, 0px))
+      calc(6px + env(safe-area-inset-bottom, 0px))
+      max(4px, env(safe-area-inset-right, 0px));
+    border-top: 1px solid var(--glass-border);
+    background: color-mix(in srgb, var(--bg-0) 92%, transparent);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    isolation: isolate;
+  }
+
+  .mobile-nav__link {
+    position: relative;
+    gap: 4px;
+    min-height: var(--mobile-tab-content);
+    padding: 4px 2px;
+    border-radius: 12px;
+    transition:
+      color 160ms ease,
+      background 160ms ease,
+      transform 80ms ease;
+  }
+
+  .mobile-nav__link:active {
+    transform: scale(0.96);
+  }
+
+  .mobile-nav__link.is-active {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  .mobile-nav__link.is-active::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 22%;
+    right: 22%;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--accent);
+  }
+
+  .mobile-nav__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  .mobile-nav__label {
+    font-size: 0.58rem;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Floating controls sit above content, below tab bar ── */
+  .scroll-to-top {
+    bottom: calc(var(--app-chrome-bottom) + 12px);
+    z-index: 900;
+  }
+
+  .mobile-menu-backdrop {
+    z-index: 1100;
+  }
+
+  .mobile-menu-sheet {
+    z-index: 1200;
+    max-height: min(88dvh, 40rem);
+    padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ── Third-party fixed UI (Netlify badge, etc.) — never over tab bar ── */
+  body > [class*="netlify"],
+  body > .netlify-badge,
+  body > iframe[src*="netlify"],
+  body > [data-netlify-identity-button] {
+    z-index: 20 !important;
+    bottom: calc(var(--app-chrome-bottom) + 8px) !important;
+    right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    pointer-events: auto;
+  }
+
+  /* Chapter rail is desktop navigation — hide on mobile */
+  .chapter-index {
+    display: none !important;
+  }
+
+  /* Search overlay clears bottom chrome */
+  .search-overlay {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .mobile-menu-sheet__feedback {
+    margin-bottom: var(--space-4);
+  }
+}

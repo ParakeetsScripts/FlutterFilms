@@ -1,5 +1,6 @@
 "use client";
 
+import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { useAuth } from "@/components/providers/AuthProvider";
 import {
   MOBILE_MENU_SECTIONS,
@@ -10,7 +11,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export function MobileNav({ onSearch }: { onSearch: () => void }) {
+export function MobileNav({
+  onSearch,
+  searchOpen = false,
+}: {
+  onSearch: () => void;
+  searchOpen?: boolean;
+}) {
   const pathname = usePathname();
   const { user } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -43,29 +50,54 @@ export function MobileNav({ onSearch }: { onSearch: () => void }) {
 
   return (
     <>
-      <nav className="mobile-nav" aria-label="Mobile">
-        {MOBILE_TAB_NAV.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`mobile-nav__link ${isNavActive(pathname, item.href) ? "is-active" : ""}`}
-            aria-current={isNavActive(pathname, item.href) ? "page" : undefined}
-          >
-            <span className="mobile-nav__icon" aria-hidden>{item.icon}</span>
-            <span className="mobile-nav__label">{item.label}</span>
-          </Link>
-        ))}
-        <button
-          type="button"
-          className={`mobile-nav__link ${moreOpen || moreActive ? "is-active" : ""}`}
-          onClick={() => setMoreOpen((open) => !open)}
-          aria-expanded={moreOpen}
-          aria-haspopup="dialog"
-          aria-controls="mobile-menu-sheet"
-        >
-          <span className="mobile-nav__icon" aria-hidden>⋯</span>
-          <span className="mobile-nav__label">More</span>
-        </button>
+      <nav className="mobile-nav" aria-label="Primary">
+        {MOBILE_TAB_NAV.map((item) => {
+          if (item.kind === "search") {
+            return (
+              <button
+                key="search"
+                type="button"
+                className={`mobile-nav__link ${searchOpen ? "is-active" : ""}`}
+                onClick={onSearch}
+                aria-label="Search"
+                aria-pressed={searchOpen}
+              >
+                <span className="mobile-nav__icon" aria-hidden>{item.icon}</span>
+                <span className="mobile-nav__label">{item.label}</span>
+              </button>
+            );
+          }
+
+          if (item.kind === "more") {
+            return (
+              <button
+                key="more"
+                type="button"
+                className={`mobile-nav__link ${moreOpen || moreActive ? "is-active" : ""}`}
+                onClick={() => setMoreOpen((open) => !open)}
+                aria-expanded={moreOpen}
+                aria-haspopup="dialog"
+                aria-controls="mobile-menu-sheet"
+              >
+                <span className="mobile-nav__icon" aria-hidden>{item.icon}</span>
+                <span className="mobile-nav__label">{item.label}</span>
+              </button>
+            );
+          }
+
+          const active = isNavActive(pathname, item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`mobile-nav__link ${active ? "is-active" : ""}`}
+              aria-current={active ? "page" : undefined}
+            >
+              <span className="mobile-nav__icon" aria-hidden>{item.icon}</span>
+              <span className="mobile-nav__label">{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
       {moreOpen ? (
@@ -108,6 +140,10 @@ export function MobileNav({ onSearch }: { onSearch: () => void }) {
               >
                 {user ? "Account" : "Sign in"}
               </Link>
+            </div>
+
+            <div className="mobile-menu-sheet__feedback">
+              <FeedbackDialog />
             </div>
 
             {MOBILE_MENU_SECTIONS.map((section) => (

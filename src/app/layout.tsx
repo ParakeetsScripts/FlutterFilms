@@ -12,6 +12,7 @@ import { UserLibraryProvider } from "@/components/providers/UserLibraryProvider"
 import { SITE_FULL_NAME, SITE_NAME, SITE_TAGLINE } from "@/lib/brand";
 import "./globals.css";
 import "@/styles/cinematic/index.css";
+import "@/styles/mobile/index.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

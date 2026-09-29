@@ -59,7 +59,7 @@ export function HomeView({ data, defaultPlayback }: { data: HomeData; defaultPla
   const yoursIndex = ++chapter;
 
   return (
-    <div className="home-cinema">
+    <div className="home-cinema mobile-page">
       <HomeHero movies={data.heroCandidates} />
       {ready ? <ContinueWatchingRow /> : null}
       <TonightChapter index={tonightIndex} featured={data.featured} playback={defaultPlayback} alsoTrending={alsoTrending} />

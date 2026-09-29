@@ -4,7 +4,6 @@ import { ChapterIndex } from "@/components/cinematic/ChapterIndex";
 import { CinematicScene } from "@/components/cinematic/CinematicScene";
 import { AnimatedCount } from "@/components/discover/AnimatedCount";
 import { CatalogArchive } from "@/components/discover/CatalogArchive";
-import { CatalogConstellation } from "@/components/discover/CatalogConstellation";
 import { CatalogFocusPanel } from "@/components/discover/CatalogFocusPanel";
 import { FilterDrawer } from "@/components/discover/FilterDrawer";
 import { ViewModeSwitcher } from "@/components/discover/ViewModeSwitcher";
@@ -24,9 +23,7 @@ import {
   DEFAULT_CATALOG_VIEW,
   TMDB_MAX_PAGE,
   appendUnique,
-  chunkRows,
   clampPage,
-  lockedCinemaColumns,
   formatCount,
   formatPageCount,
   formatResultCount,
@@ -53,7 +50,6 @@ export type DiscoverCatalogProps = {
 
 type LoadState = "idle" | "loading" | "error";
 
-const CINEMA_COLUMNS_DEFAULT = 5;
 const FOCUS_DELAY_MS = 160;
 const RESTORE_WINDOW_MS = 1400;
 const HERO_PRINT_SOURCES = 28;
@@ -85,7 +81,6 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [reorganizing, setReorganizing] = useState(false);
   const [focusId, setFocusId] = useState<number | null>(null);
-  const [columns, setColumns] = useState(CINEMA_COLUMNS_DEFAULT);
   const wallRef = useRef<HTMLDivElement>(null);
   const focusTimer = useRef(0);
   const [initialIds] = useState(() => new Set(initial.results.map((movie) => movie.id)));
@@ -94,24 +89,11 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
   const lastPage = extra?.lastPage ?? usable?.lastPage ?? initial.page;
   const maxPage = maxReachablePage(initial.totalPages);
   const focused = focusId === null ? null : (movies.find((movie) => movie.id === focusId) ?? null);
-  const rows = useMemo(() => chunkRows(movies, columns), [movies, columns]);
   const heroPrints = useMemo(() => {
     const sources = [...trending, ...initial.results].filter((movie) => movie.posterPath).slice(0, HERO_PRINT_SOURCES);
     if (!sources.length) return [];
     return Array.from({ length: HERO_FLOOR_TILES }, (_, index) => sources[index % sources.length]);
   }, [trending, initial.results]);
-
-  useEffect(() => {
-    const wall = wallRef.current;
-    if (!wall) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const next = lockedCinemaColumns(entry.contentRect.width);
-      setColumns((current) => (current === next ? current : next));
-    });
-    setColumns(lockedCinemaColumns(wall.getBoundingClientRect().width));
-    observer.observe(wall);
-    return () => observer.disconnect();
-  }, [view]);
 
   useEffect(() => {
     const point = peekReturnPoint(queryKey);
@@ -239,7 +221,7 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
 
   return (
     <div
-      className="catalog"
+      className="catalog mobile-page"
       data-view={view}
       data-reorganizing={reorganizing ? "true" : undefined}
       onClickCapture={(event) => {
@@ -404,9 +386,7 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
               >
                 {view === "archive" ? (
                   <CatalogArchive movies={movies} firstPage={initial.page} />
-                ) : view === "constellation" ? (
-                  <CatalogConstellation movies={movies} focusId={focusId} firstPage={initial.page} />
-                ) : view === "grid" ? (
+                ) : (
                   <div className="movie-grid catalog-grid">
                     {movies.map((movie, index) => (
                       <div
@@ -419,25 +399,6 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
                       >
                         <MovieCard movie={movie} />
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="catalog-rows" style={cssVars({ "--cols": columns })}>
-                    {rows.map((row, rowIndex) => (
-                      <CinematicScene key={`${row[0]?.id ?? rowIndex}-${columns}`} id={`catalog-row-${rowIndex}`} as="div" className="catalog-row">
-                        {row.map((movie, cellIndex) => (
-                          <div
-                            key={movie.id}
-                            className="catalog-cell"
-                            data-movie-id={movie.id}
-                            data-focused={movie.id === focusId ? "true" : undefined}
-                            data-fresh={initialIds.has(movie.id) ? undefined : "true"}
-                            style={cssVars({ "--i": (rowIndex * columns + cellIndex) % 12 })}
-                          >
-                            <MovieCard movie={movie} variant="spotlight" />
-                          </div>
-                        ))}
-                      </CinematicScene>
                     ))}
                   </div>
                 )}

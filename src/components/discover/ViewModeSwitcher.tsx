@@ -37,7 +37,7 @@ export function ViewModeSwitcher({ value, onChange }: { value: CatalogViewMode; 
           >
             <span className="view-switcher__label view-switcher__label--long">{mode.label}</span>
             <span className="view-switcher__label view-switcher__label--short" aria-hidden="true">
-              {mode.id === "constellation" ? "Orbit" : mode.label.slice(0, 4)}
+              {mode.label.slice(0, 4)}
             </span>
           </button>
         );

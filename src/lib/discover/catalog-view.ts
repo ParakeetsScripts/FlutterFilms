@@ -7,16 +7,14 @@ export function languageName(code: string | null | undefined): string | null {
 }
 
 /** Presentation state only — never part of the catalog query. */
-export type CatalogViewMode = "cinema" | "grid" | "archive" | "constellation";
+export type CatalogViewMode = "grid" | "archive";
 
 export const CATALOG_VIEW_MODES: ReadonlyArray<{ id: CatalogViewMode; label: string; hint: string }> = [
-  { id: "cinema", label: "Cinema", hint: "Spatial poster wall" },
-  { id: "grid", label: "Grid", hint: "Classic grid" },
+  { id: "grid", label: "Grid", hint: "Poster grid" },
   { id: "archive", label: "Archive", hint: "Dense index" },
-  { id: "constellation", label: "Constellation", hint: "Solar system of the loaded page" },
 ];
 
-export const DEFAULT_CATALOG_VIEW: CatalogViewMode = "cinema";
+export const DEFAULT_CATALOG_VIEW: CatalogViewMode = "grid";
 
 /** TMDB discover serves pages 1–500 regardless of the reported total. */
 export const TMDB_MAX_PAGE = 500;
@@ -24,7 +22,10 @@ export const TMDB_MAX_PAGE = 500;
 export const CATALOG_PAGE_SIZE = 20;
 
 export function parseCatalogView(raw: string | null | undefined): CatalogViewMode {
-  return CATALOG_VIEW_MODES.some((mode) => mode.id === raw) ? (raw as CatalogViewMode) : DEFAULT_CATALOG_VIEW;
+  if (raw === "grid" || raw === "archive") return raw;
+  // Migrate removed presentation modes
+  if (raw === "cinema" || raw === "constellation" || raw === "orbit") return "grid";
+  return DEFAULT_CATALOG_VIEW;
 }
 
 /** Stable identity for a catalog query: sorted params, without page or empty values. */

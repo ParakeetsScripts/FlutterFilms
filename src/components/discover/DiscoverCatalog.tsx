@@ -26,7 +26,7 @@ import {
   appendUnique,
   chunkRows,
   clampPage,
-  columnsForWidth,
+  lockedCinemaColumns,
   formatCount,
   formatPageCount,
   formatResultCount,
@@ -53,8 +53,7 @@ export type DiscoverCatalogProps = {
 
 type LoadState = "idle" | "loading" | "error";
 
-const CINEMA_MIN_CARD = 176;
-const CINEMA_GAP = 28;
+const CINEMA_COLUMNS_DEFAULT = 5;
 const FOCUS_DELAY_MS = 160;
 const RESTORE_WINDOW_MS = 1400;
 const HERO_PRINT_SOURCES = 28;
@@ -86,7 +85,7 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [reorganizing, setReorganizing] = useState(false);
   const [focusId, setFocusId] = useState<number | null>(null);
-  const [columns, setColumns] = useState(5);
+  const [columns, setColumns] = useState(CINEMA_COLUMNS_DEFAULT);
   const wallRef = useRef<HTMLDivElement>(null);
   const focusTimer = useRef(0);
   const [initialIds] = useState(() => new Set(initial.results.map((movie) => movie.id)));
@@ -106,9 +105,10 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
     const wall = wallRef.current;
     if (!wall) return;
     const observer = new ResizeObserver(([entry]) => {
-      const next = columnsForWidth(entry.contentRect.width, CINEMA_MIN_CARD, CINEMA_GAP);
+      const next = lockedCinemaColumns(entry.contentRect.width);
       setColumns((current) => (current === next ? current : next));
     });
+    setColumns(lockedCinemaColumns(wall.getBoundingClientRect().width));
     observer.observe(wall);
     return () => observer.disconnect();
   }, [view]);

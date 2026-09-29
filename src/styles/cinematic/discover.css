@@ -1,8 +1,30 @@
 /* ═══ Discover — the spatial catalog ═══
-   Catalog query lives in the URL; everything here is presentation (view, focus, camera). */
+   Catalog query lives in the URL; everything here is presentation (view, focus, camera).
+   Locked stage sizes keep the archive consistent across devices (no vh/vw drift). */
 
 .catalog {
+  --catalog-hero-height: 480px;
+  --catalog-orrery-height: 440px;
+  --catalog-orrery-max: 100%;
+  width: 100%;
+  max-width: 100%;
   overflow-x: clip;
+}
+
+@media (min-width: 768px) {
+  .catalog {
+    --catalog-hero-height: 560px;
+    --catalog-orrery-height: 520px;
+    --catalog-orrery-max: 960px;
+  }
+}
+
+@media (min-width: 1180px) {
+  .catalog {
+    --catalog-hero-height: 640px;
+    --catalog-orrery-height: 600px;
+    --catalog-orrery-max: 1080px;
+  }
 }
 
 /* ── Orientation: the entrance to the archive ── */
@@ -11,8 +33,11 @@
   isolation: isolate;
   display: grid;
   align-items: end;
-  min-height: clamp(440px, 70vh, 760px);
-  padding: clamp(40px, 8vh, 96px) 0 clamp(32px, 6vh, 64px);
+  width: 100%;
+  height: var(--catalog-hero-height);
+  min-height: var(--catalog-hero-height);
+  max-height: var(--catalog-hero-height);
+  padding: 40px 0 32px;
   overflow: clip;
 }
 
@@ -235,8 +260,17 @@ html[data-scroll-scenes="on"] .catalog-chapter__head {
 
 /* ── Layout with inspector ── */
 .catalog-layout {
+  position: relative;
   display: grid;
   gap: 32px;
+  width: 100%;
+  min-width: 0;
+}
+
+.catalog-wall {
+  width: 100%;
+  min-width: 0;
+  transition: opacity 380ms ease, transform 380ms var(--ease-cinematic), filter 380ms ease;
 }
 
 .catalog-focus {
@@ -362,9 +396,28 @@ html[data-scroll-scenes="on"] .catalog-chapter__head {
 
 /* ── Cinema view: rows lean with their distance from the viewport center ── */
 .catalog-rows {
+  --cols: 2;
   display: grid;
   gap: 40px;
   perspective: 1600px;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .catalog-rows { --cols: 3; }
+}
+
+@media (min-width: 960px) {
+  .catalog-rows { --cols: 4; }
+}
+
+@media (min-width: 1240px) {
+  .catalog-rows { --cols: 5; }
+}
+
+@media (min-width: 1500px) {
+  .catalog-rows { --cols: 6; }
 }
 
 .catalog-row {
@@ -421,10 +474,6 @@ html[data-pointer-effects="on"] .catalog-cell[data-focused] {
 }
 
 /* Filter changes: the current archive recedes while the new results load. */
-.catalog-wall {
-  transition: opacity 380ms ease, transform 380ms var(--ease-cinematic), filter 380ms ease;
-}
-
 .catalog[data-reorganizing] .catalog-wall {
   opacity: 0.3;
   filter: saturate(0.5);
@@ -617,10 +666,15 @@ html[data-pointer-effects="on"] .catalog-cell[data-focused] {
 .solar-system__stage {
   position: relative;
   isolation: isolate;
-  min-height: clamp(580px, 82vh, 960px);
+  width: min(100%, var(--catalog-orrery-max));
+  height: var(--catalog-orrery-height);
+  min-height: var(--catalog-orrery-height);
+  max-height: var(--catalog-orrery-height);
+  margin-inline: auto;
   overflow: clip;
   perspective: 1680px;
   perspective-origin: 50% 38%;
+  contain: layout paint;
   background:
     radial-gradient(ellipse 42% 28% at 50% 46%, rgba(255, 186, 92, 0.1), transparent 70%),
     radial-gradient(ellipse 80% 70% at 50% 50%, #07060c, #030208);
@@ -650,7 +704,7 @@ html[data-pointer-effects="on"] .catalog-cell[data-focused] {
   left: 50%;
   top: 46%;
   z-index: 1;
-  width: min(340px, 48vw);
+  width: min(280px, 42%);
   aspect-ratio: 1;
   translate: -50% -50%;
   pointer-events: none;
@@ -749,7 +803,7 @@ html[data-pointer-effects="on"] .catalog-cell[data-focused] {
   position: absolute;
   left: 50%;
   top: 0;
-  width: min(var(--planet-size), 22vw);
+  width: var(--planet-size);
   translate: -50% -50%;
   transform-origin: center center;
   transform: rotate(calc(var(--a) * -1)) rotateX(calc(var(--orbit-tilt) * -1));
@@ -758,7 +812,7 @@ html[data-pointer-effects="on"] .catalog-cell[data-focused] {
 
 .solar-system__planet[data-focused] {
   z-index: 3;
-  width: min(calc(var(--planet-size) + 18px), 26vw);
+  width: calc(var(--planet-size) + 14px);
   filter: drop-shadow(0 0 16px rgba(255, 220, 160, 0.4));
 }
 
@@ -836,7 +890,7 @@ html[data-pointer-effects="on"] .catalog-cell[data-focused] {
   left: 50%;
   top: 50%;
   z-index: 2;
-  width: min(168px, 36vw);
+  width: 148px;
   translate: -50% -50%;
   transform: rotateX(calc(var(--orbit-tilt) * -1));
 }
@@ -952,17 +1006,13 @@ html[data-pointer-effects="on"] .catalog-cell[data-focused] {
     --orbit-tilt: 38deg;
   }
 
-  .solar-system__stage {
-    min-height: 540px;
-  }
-
-  .solar-system__orbit[data-ring="0"] { --planet-size: 58px; }
-  .solar-system__orbit[data-ring="1"] { --planet-size: 68px; }
-  .solar-system__orbit[data-ring="2"] { --planet-size: 76px; }
-  .solar-system__orbit[data-ring="3"] { --planet-size: 70px; }
+  .solar-system__orbit[data-ring="0"] { --planet-size: 52px; }
+  .solar-system__orbit[data-ring="1"] { --planet-size: 60px; }
+  .solar-system__orbit[data-ring="2"] { --planet-size: 68px; }
+  .solar-system__orbit[data-ring="3"] { --planet-size: 62px; }
 
   .solar-system__sun {
-    width: min(128px, 40vw);
+    width: 112px;
   }
 
   .solar-system__planet .movie-card__meta,
@@ -980,15 +1030,15 @@ html[data-pointer-effects="on"] .catalog-cell[data-focused] {
 }
 
 .catalog-ruler {
-  position: sticky;
-  top: calc(var(--nav-height-scrolled, 56px) + 72px);
-  float: right;
+  position: absolute;
+  top: 0;
+  right: -28px;
   display: none;
   width: 18px;
-  height: min(48vh, 360px);
-  margin-right: -28px;
+  height: 360px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--text-muted) 18%, transparent);
+  pointer-events: none;
 }
 
 .catalog-ruler__fill {
@@ -1006,15 +1056,25 @@ html[data-pointer-effects="on"] .catalog-cell[data-focused] {
 }
 
 @media (max-width: 767px) {
-  .catalog-hero {
-    min-height: 400px;
-  }
-
   .catalog-controls {
     top: calc(var(--nav-height-scrolled) + 4px);
   }
 
   .catalog-controls__pages {
     display: none;
+  }
+
+  .view-switcher__option {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 0.66rem;
+  }
+}
+
+/* Keep a chapter-index lane on wide screens without squeezing the catalog. */
+@media (min-width: 1180px) and (min-height: 620px) {
+  .catalog-chapter .page-container,
+  .catalog-console.page-container {
+    padding-inline: calc(var(--gutter) + 72px);
   }
 }

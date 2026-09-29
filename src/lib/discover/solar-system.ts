@@ -56,7 +56,7 @@ export function layoutSolarSystem(movies: MovieSummary[], focusId: number | null
     const count = sizes[index];
     rings.push({
       index,
-      radius: 20 + ((index + 1) / ringCount) * 32,
+      radius: 18 + ((index + 1) / ringCount) * 28,
       periodSec: 26 + index * 16,
       offsetDeg: index * 22,
       planets: planets.slice(cursor, cursor + count),

@@ -59,6 +59,22 @@ export function columnsForWidth(width: number, minCard: number, gap: number, max
   return Math.max(1, Math.min(maxColumns, Math.floor((width + gap) / (minCard + gap))));
 }
 
+/** Locked cinema columns per viewport — keeps row chunking aligned with CSS on every device. */
+export const CATALOG_CINEMA_COLUMNS: ReadonlyArray<{ minWidth: number; columns: number }> = [
+  { minWidth: 1500, columns: 6 },
+  { minWidth: 1240, columns: 5 },
+  { minWidth: 960, columns: 4 },
+  { minWidth: 640, columns: 3 },
+  { minWidth: 0, columns: 2 },
+];
+
+export function lockedCinemaColumns(width: number): number {
+  for (const breakpoint of CATALOG_CINEMA_COLUMNS) {
+    if (width >= breakpoint.minWidth) return breakpoint.columns;
+  }
+  return 2;
+}
+
 export function chunkRows<T>(items: T[], columns: number): T[][] {
   const size = Math.max(1, Math.floor(columns));
   const rows: T[][] = [];

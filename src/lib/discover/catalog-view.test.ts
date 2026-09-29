@@ -5,6 +5,7 @@ import {
   chunkRows,
   clampPage,
   columnsForWidth,
+  lockedCinemaColumns,
   formatPageCount,
   formatResultCount,
   languageName,
@@ -58,6 +59,14 @@ describe("catalog presentation adapter", () => {
     expect(columnsForWidth(360, 176, 28)).toBe(1);
     expect(columnsForWidth(5000, 176, 28)).toBe(7);
     expect(chunkRows([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it("locks cinema columns to stable breakpoints", () => {
+    expect(lockedCinemaColumns(390)).toBe(2);
+    expect(lockedCinemaColumns(700)).toBe(3);
+    expect(lockedCinemaColumns(1100)).toBe(4);
+    expect(lockedCinemaColumns(1300)).toBe(5);
+    expect(lockedCinemaColumns(1600)).toBe(6);
   });
 
   it("appends loaded pages without duplicating titles", () => {

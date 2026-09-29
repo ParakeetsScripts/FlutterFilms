@@ -101,7 +101,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const modKey = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
+  const [modKey, setModKey] = useState("Ctrl");
+
+  useEffect(() => {
+    setModKey(/Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘" : "Ctrl");
+  }, []);
 
   return (
     <div className={["app-shell", settings.tvMode ? "tv-mode" : ""].filter(Boolean).join(" ")}>

@@ -7,7 +7,7 @@ import { getInstallCapability, manualInstallStepsFor } from "@/lib/pwa/platform"
 import { detectInstallPlatform } from "@/lib/pwa/install-prompt";
 import { getCanonicalSiteLabel, getCanonicalSiteUrl } from "@/lib/site-url";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type InstallButtonProps = {
   className?: string;
@@ -18,6 +18,9 @@ type InstallButtonProps = {
 export function InstallButton({ className = "", size = "default", variant = "default" }: InstallButtonProps) {
   const { canInstall, showManualHint, standalone, install } = usePwaInstall();
   const [guideOpen, setGuideOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const capability = useMemo(() => getInstallCapability(canInstall), [canInstall]);
   const quickSteps = useMemo(() => {
@@ -25,6 +28,7 @@ export function InstallButton({ className = "", size = "default", variant = "def
     return manualInstallStepsFor(platform, capability.browserLabel, getCanonicalSiteLabel(), getCanonicalSiteUrl());
   }, [capability.browserLabel, canInstall]);
 
+  if (!mounted) return null;
   if (standalone) return null;
 
   const sizeClass = size === "lg" ? "btn-lg" : "";

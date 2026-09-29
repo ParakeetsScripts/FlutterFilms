@@ -12,8 +12,17 @@ export async function getMovie(
   id: number,
   options: { language?: string; region?: string; forceRefresh?: boolean } = {},
 ): Promise<Movie | null> {
-  const catalog = await getCatalogMovie(id, options);
-  return catalog ? catalogMovieToLegacy(catalog) : null;
+  try {
+    const catalog = await getCatalogMovie(id, options);
+    if (catalog) return catalogMovieToLegacy(catalog);
+  } catch {
+    // Catalog/DB path failed — try live TMDB below
+  }
+  try {
+    return await fetchTmdbMovieRaw(id, options);
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchTmdbMovieRaw(
@@ -32,6 +41,8 @@ export async function fetchTmdbMovieRaw(
   return normalizeMovie(raw, { region: options.region });
 }
 
+export type MovieListOptions = { language?: string; region?: string };
+
 async function getMovieList(
   path: string,
   page = 1,
@@ -45,24 +56,24 @@ async function getMovieList(
   return normalizePagedMovies(raw);
 }
 
-export function getPopularMovies(page = 1) {
-  return getMovieList("/movie/popular", page);
+export function getPopularMovies(page = 1, options: MovieListOptions = {}) {
+  return getMovieList("/movie/popular", page, { language: options.language, region: options.region });
 }
 
-export function getTopRatedMovies(page = 1) {
-  return getMovieList("/movie/top_rated", page);
+export function getTopRatedMovies(page = 1, options: MovieListOptions = {}) {
+  return getMovieList("/movie/top_rated", page, { language: options.language, region: options.region });
 }
 
-export function getNowPlayingMovies(page = 1, region?: string) {
-  return getMovieList("/movie/now_playing", page, { region });
+export function getNowPlayingMovies(page = 1, region?: string, language?: string) {
+  return getMovieList("/movie/now_playing", page, { region, language });
 }
 
-export function getUpcomingMovies(page = 1, region?: string) {
-  return getMovieList("/movie/upcoming", page, { region });
+export function getUpcomingMovies(page = 1, region?: string, language?: string) {
+  return getMovieList("/movie/upcoming", page, { region, language });
 }
 
-export function getTrendingMovies(window: "day" | "week" = "day", page = 1) {
-  return getMovieList(`/trending/movie/${window}`, page);
+export function getTrendingMovies(window: "day" | "week" = "day", page = 1, options: MovieListOptions = {}) {
+  return getMovieList(`/trending/movie/${window}`, page, { language: options.language, region: options.region });
 }
 
 export async function getMovieCollection(id: number) {

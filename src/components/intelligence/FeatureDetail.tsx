@@ -2,8 +2,10 @@
 
 import { TrustBadge } from "@/components/ai/TrustBadge";
 import type { IntelligenceFeature } from "@/lib/ai/features/registry";
-import { defaultInputForSlug } from "@/lib/ai/features/feature-inputs";
+import { MovieCard } from "@/components/movie/MovieCard";
+import { defaultInputForSlug, inputFieldsForSlug } from "@/lib/ai/features/feature-inputs";
 import type { FeatureHealth, FeatureRunResult } from "@/lib/ai/features/types";
+import type { MovieSummary } from "@/lib/tmdb/types";
 import { useUserLibrary } from "@/components/providers/UserLibraryProvider";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -11,6 +13,61 @@ import { useEffect, useMemo, useState } from "react";
 type Props = {
   slug: string;
 };
+
+function isMovieSummary(value: unknown): value is MovieSummary {
+  return Boolean(value && typeof value === "object" && "id" in value && "title" in value);
+}
+
+function collectMovieResults(data: unknown): MovieSummary[] {
+  if (!data || typeof data !== "object") return [];
+  const record = data as Record<string, unknown>;
+  const items: MovieSummary[] = [];
+  const seen = new Set<number>();
+
+  for (const value of [record.primary, record.secondary, ...(Array.isArray(record.movies) ? record.movies : []), ...(Array.isArray(record.results) ? record.results : []), ...(Array.isArray(record.picks) ? record.picks : [])]) {
+    if (!isMovieSummary(value) || seen.has(value.id)) continue;
+    seen.add(value.id);
+    items.push(value);
+  }
+
+  return items;
+}
+
+function renderFeatureData(data: unknown) {
+  const movies = collectMovieResults(data);
+  const anchor =
+    data && typeof data === "object" && "anchor" in data && data.anchor && typeof data.anchor === "object"
+      ? (data.anchor as { title?: string; attentionLabel?: string; genres?: string[]; runtime?: number | null })
+      : null;
+
+  if (movies.length) {
+    return (
+      <div className="mt-4 space-y-4">
+        {anchor?.title ? (
+          <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3 text-sm text-[var(--text-secondary)]">
+            <p className="font-medium text-[var(--text)]">{anchor.title}</p>
+            <p className="mt-1">
+              {anchor.attentionLabel ?? "Attention profile"}
+              {anchor.runtime ? ` · ${anchor.runtime} min` : ""}
+              {anchor.genres?.length ? ` · ${anchor.genres.join(", ")}` : ""}
+            </p>
+          </div>
+        ) : null}
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          {movies.map((movie) => (
+            <MovieCard key={movie.id} movie={movie} variant="compact" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-[var(--surface)] p-3 text-xs">
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  );
+}
 
 export function FeatureDetail({ slug }: Props) {
   const { watchlist, favorites, history } = useUserLibrary();
@@ -22,10 +79,12 @@ export function FeatureDetail({ slug }: Props) {
   const [compareMovieId, setCompareMovieId] = useState("");
   const [personId, setPersonId] = useState("");
   const [collectionId, setCollectionId] = useState("");
+  const [attention, setAttention] = useState<"background" | "full" | "">("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const defaults = useMemo(() => defaultInputForSlug(slug), [slug]);
+  const fields = useMemo(() => inputFieldsForSlug(slug), [slug]);
 
   useEffect(() => {
     fetch(`/api/ai/features/${slug}`)
@@ -45,7 +104,8 @@ export function FeatureDetail({ slug }: Props) {
     if (!compareMovieId && defaults.compareMovieId) setCompareMovieId(String(defaults.compareMovieId));
     if (!personId && defaults.personId) setPersonId(String(defaults.personId));
     if (!collectionId && defaults.collectionId) setCollectionId(String(defaults.collectionId));
-  }, [defaults, favorites, history, query, movieId, compareMovieId, personId, collectionId]);
+    if (!attention && typeof defaults.attention === "string") setAttention(defaults.attention as "background" | "full");
+  }, [defaults, favorites, history, query, movieId, compareMovieId, personId, collectionId, attention]);
 
   async function runFeature() {
     if (!feature?.hasService) return;
@@ -58,6 +118,7 @@ export function FeatureDetail({ slug }: Props) {
       if (compareMovieId.trim()) input.compareMovieId = Number(compareMovieId);
       if (personId.trim()) input.personId = Number(personId);
       if (collectionId.trim()) input.collectionId = Number(collectionId);
+      if (attention) input.attention = attention;
       const response = await fetch(`/api/ai/features/${slug}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,10 +144,12 @@ export function FeatureDetail({ slug }: Props) {
   }
 
   const canRun = feature.hasService && feature.status !== "planned";
-  const needsQuery = typeof defaults.query === "string";
-  const needsPerson = defaults.personId != null;
-  const needsCollection = defaults.collectionId != null;
-  const needsCompare = defaults.compareMovieId != null;
+  const needsQuery = fields.needsQuery;
+  const needsMovie = fields.needsMovie;
+  const needsPerson = fields.needsPerson;
+  const needsCollection = fields.needsCollection;
+  const needsCompare = fields.needsCompare;
+  const needsAttention = fields.needsAttention;
   const routeHint =
     result?.data && typeof result.data === "object" && result.data !== null && "route" in result.data
       ? String((result.data as { route: string }).route)
@@ -159,15 +222,30 @@ export function FeatureDetail({ slug }: Props) {
                 />
               </label>
             ) : null}
-            <label className="block text-sm">
-              <span className="text-[var(--text-muted)]">Movie ID (TMDB)</span>
-              <input
-                value={movieId}
-                onChange={(e) => setMovieId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
-                placeholder="e.g. 550"
-              />
-            </label>
+            {needsMovie ? (
+              <label className="block text-sm">
+                <span className="text-[var(--text-muted)]">Movie ID (TMDB)</span>
+                <input
+                  value={movieId}
+                  onChange={(e) => setMovieId(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
+                  placeholder="e.g. 550"
+                />
+              </label>
+            ) : null}
+            {needsAttention ? (
+              <label className="block text-sm">
+                <span className="text-[var(--text-muted)]">Attention level</span>
+                <select
+                  value={attention}
+                  onChange={(e) => setAttention(e.target.value as "background" | "full")}
+                  className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
+                >
+                  <option value="background">Background / multitask-friendly</option>
+                  <option value="full">Full attention</option>
+                </select>
+              </label>
+            ) : null}
             {needsCompare ? (
               <label className="block text-sm">
                 <span className="text-[var(--text-muted)]">Compare movie ID</span>
@@ -239,9 +317,7 @@ export function FeatureDetail({ slug }: Props) {
               ))}
             </ul>
           ) : null}
-          <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-[var(--surface)] p-3 text-xs">
-            {JSON.stringify(result.data ?? { message: result.error }, null, 2)}
-          </pre>
+          {renderFeatureData(result.data ?? { message: result.error })}
         </section>
       ) : null}
     </div>

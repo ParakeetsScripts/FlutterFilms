@@ -1,4 +1,2 @@
 #!/usr/bin/env bash
-set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/scripts/dev.sh" "$@"
+exec "$(dirname "$0")/scripts/dev.sh"

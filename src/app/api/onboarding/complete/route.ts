@@ -71,5 +71,5 @@ export async function POST(request: Request) {
         languages: state.preferredLanguages.length,
       },
     };
-  });
+  }, { route: "/api/onboarding/complete" });
 }

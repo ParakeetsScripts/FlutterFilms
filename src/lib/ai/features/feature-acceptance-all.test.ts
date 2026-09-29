@@ -18,12 +18,13 @@ describe("200-feature acceptance", () => {
     expect(getFeatureDefinitions()).toHaveLength(200);
   });
 
-  it("reports honest status distribution", () => {
+  it("reports production status distribution", () => {
     const counts = countByStatus();
     expect(counts.live + counts.beta + counts.planned + counts.degraded + counts.error).toBe(200);
-    expect(counts.live).toBeLessThan(200);
-    expect(counts.beta).toBeGreaterThan(0);
-    expect(CONTRACT_BY_SLUG.size).toBeGreaterThan(10);
+    expect(counts.live).toBe(200);
+    expect(counts.beta).toBe(0);
+    expect(counts.planned).toBe(0);
+    expect(CONTRACT_BY_SLUG.size).toBe(200);
   });
 
   it("only marks contracted features as hasTests", () => {
@@ -51,9 +52,8 @@ describe("200-feature acceptance", () => {
     expect(failures, failures.join("\n")).toEqual([]);
   }, 120_000);
 
-  it("beta features execute without stubs when fixtures provided", async () => {
-    const beta = getValidatedFeatures().filter((f) => f.status === "beta" && f.hasService);
-    const sample = beta.slice(0, 30);
+  it("every capability executes without stubs when fixtures provided", async () => {
+    const sample = getValidatedFeatures().slice(0, 40);
     for (const feature of sample) {
       const def = getFeatureDefinitions().find((f) => f.slug === feature.slug)!;
       const result = await executeFeatureService(def, defaultInputForSlug(feature.slug), FIXTURE_CTX);

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { OfflineRetry } from "@/components/pwa/OfflineRetry";
 import { SITE_NAME } from "@/lib/brand";
 
 export const metadata = {
@@ -16,10 +16,7 @@ export default function OfflinePage() {
           features need a network connection — {SITE_NAME} does not provide offline movie streaming.
         </p>
       </header>
-      <div className="flex flex-wrap gap-3">
-        <Link href="/" className="btn btn-primary">Try again</Link>
-        <Link href="/install" className="btn btn-secondary">Install guide</Link>
-      </div>
+      <OfflineRetry />
     </div>
   );
 }

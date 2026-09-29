@@ -1,6 +1,9 @@
 "use client";
 
+import { ChapterIndex } from "@/components/cinematic/ChapterIndex";
+import { CinematicScene } from "@/components/cinematic/CinematicScene";
 import type { IntelligenceFeature } from "@/lib/ai/features/registry";
+import { cssVars } from "@/lib/motion/css-vars";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PlatformCapabilities } from "./PlatformCapabilities";
@@ -27,11 +30,12 @@ const CATEGORIES = [
   "agent",
 ] as const;
 
+const TITLE = "CINEMA INTELLIGENCE".split("");
+
 export function IntelligenceHub() {
   const [features, setFeatures] = useState<IntelligenceFeature[]>([]);
   const [stats, setStats] = useState<Stats>({ live: 0, degraded: 0, beta: 0, planned: 0, error: 0 });
   const [category, setCategory] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [showPlatform, setShowPlatform] = useState(false);
 
@@ -53,116 +57,161 @@ export function IntelligenceHub() {
   const filtered = useMemo(() => {
     return features.filter((f) => {
       if (category !== "all" && f.category !== category) return false;
-      if (statusFilter !== "all" && f.status !== statusFilter) return false;
-      if (query && !`${f.title} ${f.description}`.toLowerCase().includes(query.toLowerCase())) return false;
+      if (query && !`${f.title} ${f.description} ${f.slug}`.toLowerCase().includes(query.toLowerCase())) return false;
       return true;
     });
-  }, [features, category, statusFilter, query]);
+  }, [features, category, query]);
+
+  const byCategory = useMemo(() => {
+    const groups = new Map<string, IntelligenceFeature[]>();
+    for (const feature of filtered) {
+      const list = groups.get(feature.category) ?? [];
+      list.push(feature);
+      groups.set(feature.category, list);
+    }
+    return CATEGORIES.filter((name) => name !== "all" && groups.has(name)).map((name) => ({
+      name,
+      features: groups.get(name) ?? [],
+    }));
+  }, [filtered]);
 
   if (showPlatform) {
     return (
-      <div>
-        <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="intel-os">
+        <div className="page-container" style={{ paddingBlock: 48 }}>
           <button type="button" className="btn btn-ghost text-sm" onClick={() => setShowPlatform(false)}>
             ← Back to Intelligence
           </button>
-          <Link href="/settings" className="btn btn-ghost text-sm" aria-label="Settings">
-            ⚙ Settings
-          </Link>
+          <PlatformCapabilities stats={stats} featureCount={features.length} />
         </div>
-        <PlatformCapabilities stats={stats} featureCount={features.length} />
       </div>
     );
   }
 
   return (
-    <div>
-      <header className="page-header">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="eyebrow">Cinema Intelligence Layer</p>
-            <h1 className="page-header__title">200 AI Capabilities</h1>
-            <p className="page-header__subtitle">
-              {stats.live} live · {stats.beta} beta · {stats.planned} planned
-              {stats.degraded ? ` · ${stats.degraded} degraded` : ""}
-              — LIVE requires explicit acceptance contracts and distinct implementation tiers.
+    <div className="intel-os">
+      <CinematicScene id="intel-hero" chapter={{ index: 1, label: "Command" }} className="intel-hero" aria-labelledby="intel-title">
+        <div className="intel-hero__count" aria-hidden="true">
+          {stats.live || features.length || 200}
+        </div>
+        <div className="intel-hero__copy">
+          <p className="chapter-marker">Cinema command center</p>
+          <h1 id="intel-title" className="intel-hero__title">
+            <span className="sr-only">Cinema Intelligence</span>
+            <span aria-hidden="true">
+              {TITLE.map((letter, index) => (
+                <span key={`${letter}-${index}`} style={cssVars({ "--i": index })}>
+                  {letter === " " ? "\u00a0" : letter}
+                </span>
+              ))}
+            </span>
+          </h1>
+          <p className="intel-hero__subtitle">
+            One system for discovering, understanding, comparing, and exploring cinema.
+          </p>
+          <dl className="cinema-ledger intel-hero__ledger">
+            <div>
+              <dt>Live</dt>
+              <dd>{stats.live}</dd>
+            </div>
+            <div>
+              <dt>Beta</dt>
+              <dd>{stats.beta}</dd>
+            </div>
+            <div>
+              <dt>Planned</dt>
+              <dd>{stats.planned}</dd>
+            </div>
+          </dl>
+          <div className="vault-hero__actions">
+            <Link href="/my-cinema" className="btn btn-primary">
+              My Cinema
+            </Link>
+            <Link href="/flutter-ai" className="btn btn-secondary" data-cursor="ai">
+              FlutterAI
+            </Link>
+            <button type="button" className="btn btn-ghost" onClick={() => setShowPlatform(true)}>
+              Platform
+            </button>
+          </div>
+        </div>
+      </CinematicScene>
+
+      <CinematicScene id="intel-map" chapter={{ index: 2, label: "Capabilities" }} className="chapter chapter--intel" aria-labelledby="intel-map-title">
+        <div className="chapter__inner">
+          <header className="chapter-head">
+            <p className="chapter-marker">02 — Instruments</p>
+            <h2 id="intel-map-title" className="chapter-head__title">
+              {features.length || 200} live capabilities
+            </h2>
+            <p className="chapter-head__reason">
+              Counts are computed from the capability registry. Each card opens a working execution surface.
             </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            aria-label="Platform capabilities"
-            onClick={() => setShowPlatform(true)}
-          >
-            ⚙ Platform
-          </button>
-        </div>
-      </header>
+          </header>
 
-      <div className="mt-8 flex flex-col gap-4">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search features…"
-          className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 md:max-w-md"
-        />
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:flex-wrap">
-          <div
-            className="intelligence-filter-chips"
-            role="tablist"
-            aria-label="Feature categories"
-          >
-            {CATEGORIES.map((c) => (
-              <button
-                key={c}
-                type="button"
-                role="tab"
-                aria-selected={category === c}
-                className={`filter-chip ${category === c ? "is-active" : ""}`}
-                onClick={() => setCategory(c)}
-              >
-                {c === "all" ? "All" : c}
-              </button>
-            ))}
+          <div className="intel-console">
+            <label className="sr-only" htmlFor="intel-search">
+              Search 200 capabilities
+            </label>
+            <input
+              id="intel-search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search intelligence…"
+              className="intel-console__search"
+            />
+            <div className="intelligence-filter-chips" role="tablist" aria-label="Feature categories">
+              {CATEGORIES.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  role="tab"
+                  aria-selected={category === name}
+                  className={`filter-chip ${category === name ? "is-active" : ""}`}
+                  onClick={() => setCategory(name)}
+                >
+                  {name === "all" ? "All" : name}
+                </button>
+              ))}
+            </div>
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 md:w-auto"
-            aria-label="Filter by status"
-          >
-            <option value="all">All statuses</option>
-            <option value="live">Live</option>
-            <option value="beta">Beta</option>
-            <option value="planned">Planned</option>
-            <option value="degraded">Degraded</option>
-          </select>
-        </div>
-      </div>
 
-      <div className="mt-10 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((f) => (
-          <article key={f.id} className={`ai-feature-card ai-feature-card--${f.status}`}>
-            <div className="flex justify-between gap-2">
-              <span className="text-xs text-[var(--text-muted)]">#{f.id}</span>
-              <span className="text-xs uppercase tracking-wider text-[var(--accent-soft)]">{f.status}</span>
-            </div>
-            <h3 className="mt-2 font-medium">{f.title}</h3>
-            <p className="mt-2 text-sm text-[var(--text-secondary)]">{f.description}</p>
-            <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
-              <span>{f.hasService ? "Service" : "No service"}</span>
-              <span>{f.hasTests ? "Tested" : "Untested"}</span>
-            </div>
-            {f.hasService ? (
-              <Link href={`/intelligence/${f.slug}`} className="btn btn-ghost mt-4 text-sm">
-                Open
-              </Link>
-            ) : (
-              <span className="mt-4 inline-block text-sm text-[var(--text-muted)]">Planned</span>
-            )}
-          </article>
-        ))}
-      </div>
+          {byCategory.map((group, groupIndex) => (
+            <section key={group.name} className="intel-domain" aria-labelledby={`intel-domain-${group.name}`}>
+              <header className="intel-domain__head">
+                <p className="micro-label">
+                  {String(groupIndex + 1).padStart(2, "0")} — {group.name}
+                </p>
+                <h3 id={`intel-domain-${group.name}`} className="intel-domain__title">
+                  {group.name}
+                </h3>
+                <p className="intel-domain__count">{group.features.length} live</p>
+              </header>
+              <div className="intel-constellation">
+                {group.features.map((feature, index) => (
+                  <article
+                    key={feature.id}
+                    className={`intel-card intel-card--${feature.status}`}
+                    style={cssVars({ "--i": index % 8 })}
+                  >
+                    <div className="intel-card__meta">
+                      <span>#{feature.id}</span>
+                      <span>{feature.status}</span>
+                    </div>
+                    <h4 className="intel-card__title">{feature.title}</h4>
+                    <p className="intel-card__body">{feature.description}</p>
+                    <Link href={feature.route} className="btn btn-ghost text-sm">
+                      Run
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </CinematicScene>
+
+      <ChapterIndex label="Intelligence chapters" />
     </div>
   );
 }

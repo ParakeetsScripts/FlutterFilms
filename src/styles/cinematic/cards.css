@@ -1,0 +1,243 @@
+/* ── Movie card physics (Z2). CSS owns hover/focus/press; JS only feeds --tilt-x/--tilt-y. ── */
+
+.movie-card {
+  --tilt-x: 0;
+  --tilt-y: 0;
+}
+
+.movie-card__faces {
+  position: relative;
+}
+
+.movie-card__poster-wrap {
+  box-shadow: var(--print-rim);
+}
+
+.movie-card__glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle at calc(50% + var(--tilt-x) * 45%) calc(35% + var(--tilt-y) * 45%),
+    rgba(255, 255, 255, 0.2),
+    transparent 58%
+  );
+  transition: opacity var(--motion-ui) ease;
+}
+
+html[data-pointer-effects="on"] .movie-card[data-tilt] .movie-card__poster-wrap {
+  transform:
+    perspective(var(--perspective-card))
+    rotateX(calc(var(--tilt-y) * -6deg * var(--depth-scale)))
+    rotateY(calc(var(--tilt-x) * 8deg * var(--depth-scale)))
+    translate3d(0, -4px, 0);
+  box-shadow: var(--print-shadow), var(--print-rim);
+  transition: transform 140ms linear, box-shadow var(--motion-ui) ease;
+}
+
+html[data-pointer-effects="on"] .movie-card[data-tilt] .movie-card__glare {
+  opacity: 1;
+}
+
+/* Keyboard focus gets the same emphasis as hover. */
+.movie-card__link:focus-visible .movie-card__poster-wrap {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--accent-soft);
+}
+
+.movie-card__link:active .movie-card__poster-wrap {
+  scale: 0.97;
+  transition: scale 90ms ease;
+}
+
+.movie-card__poster-fallback {
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(255, 255, 255, 0.06), transparent 62%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  font-family: var(--font-display);
+  color: var(--text-secondary);
+}
+
+.movie-card__poster-fallback span {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.movie-card__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.movie-card__save.just-saved {
+  animation: save-snap 460ms var(--ease-cinematic);
+}
+
+@keyframes save-snap {
+  0% { scale: 0.82; }
+  55% { scale: 1.12; }
+  100% { scale: 1; }
+}
+
+.movie-card__flip {
+  min-height: 28px;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* ── Flip (selective: only cards that receive grounded details) ── */
+.movie-card--flippable .movie-card__faces {
+  transform-style: preserve-3d;
+  transition: transform var(--motion-scene) var(--ease-cinematic);
+}
+
+.movie-card--flippable .movie-card__poster-wrap {
+  backface-visibility: hidden;
+}
+
+.movie-card__back {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background:
+    radial-gradient(ellipse at 20% 0%, var(--accent-glow), transparent 55%),
+    linear-gradient(165deg, var(--bg-2), var(--bg-1));
+  transform: rotateY(180deg);
+  backface-visibility: hidden;
+}
+
+.movie-card[data-flipped] .movie-card__faces {
+  transform: rotateY(180deg);
+}
+
+.movie-card[data-flipped] .movie-card__poster-wrap {
+  transform: none;
+}
+
+.movie-card__back-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.movie-card__back-facts {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.movie-card__back-facts div {
+  display: grid;
+  gap: 1px;
+}
+
+.movie-card__back-facts dt {
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.movie-card__back-facts dd {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.movie-card__back-reason {
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.movie-card__back-reason span {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+}
+
+.movie-card__back-cta {
+  margin-top: auto;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--accent-soft);
+}
+
+.movie-card--compact {
+  width: 100%;
+}
+
+.movie-card--compact .movie-card__title {
+  font-size: 0.82rem;
+}
+
+.movie-card--compact .movie-card__sub,
+.movie-card--compact .movie-card__save {
+  font-size: 0.68rem;
+}
+
+/* ── Film-strip arc rail: cards curve away from the rail center (near = crisp, far = recessed) ── */
+.cinematic-rail--arc .cinematic-rail__scroller {
+  position: relative;
+  padding-top: 18px;
+  margin-top: -18px;
+}
+
+html[data-scroll-scenes="on"] .cinematic-rail--arc .cinematic-rail__scroller > * {
+  transform:
+    perspective(1200px)
+    rotateY(calc(var(--arc, 0) * -18deg * var(--depth-scale)))
+    translateZ(calc(var(--arc-abs, 0) * -80px * var(--depth-scale)))
+    scale(calc(1 - var(--arc-abs, 0) * 0.06));
+  opacity: calc(1 - var(--arc-abs, 0) * 0.32);
+  transition: transform 110ms linear, opacity 110ms linear;
+}
+
+html[data-scroll-scenes="on"] .cinematic-rail--arc .cinematic-rail__scroller > *:hover,
+html[data-scroll-scenes="on"] .cinematic-rail--arc .cinematic-rail__scroller > *:focus-within {
+  opacity: 1;
+}
+
+/* ── Grid depth reveal (progressive: scroll-driven animations where supported) ── */
+@supports (animation-timeline: view()) {
+  html[data-scroll-scenes="on"] .movie-grid > * {
+    animation: grid-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 70%;
+  }
+}
+
+@keyframes grid-rise {
+  from {
+    opacity: 0;
+    transform: perspective(900px) translate3d(0, 28px, -60px) rotateX(7deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

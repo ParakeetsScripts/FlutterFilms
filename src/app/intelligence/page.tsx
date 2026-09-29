@@ -8,9 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function IntelligencePage() {
-  return (
-    <div className="page-container page-section">
-      <IntelligenceHub />
-    </div>
-  );
+  return <IntelligenceHub />;
 }

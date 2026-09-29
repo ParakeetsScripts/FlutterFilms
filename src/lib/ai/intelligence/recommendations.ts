@@ -61,7 +61,8 @@ function discoverBase(ctx: RecommendContext) {
   const asOf = ctx.asOf ?? new Date();
   return {
     releaseDateLte: todayIso(asOf),
-    language: ctx.language,
+    uiLanguage: ctx.language,
+    originalLanguage: ctx.language,
     genre: ctx.genreIds?.[0],
     runtimeLte: ctx.maxRuntime,
   };
@@ -147,6 +148,25 @@ export async function runRecommendation(ctx: RecommendContext) {
     movies = await poolFromHistory(ctx.history, ctx.favorites, ctx);
     movies = dedupe(movies, exclude).slice(0, 8);
     reason = "Five-to-eight film marathon from your taste anchor.";
+  } else if (ctx.mode === "group") {
+    const groupAnchors = [...new Set(ctx.groupTasteIds?.flat() ?? ctx.watchlist)].slice(0, 6);
+    const recPools = await Promise.all(
+      groupAnchors.map((id) => getRecommendations(id).catch(() => ({ results: [] as MovieSummary[] }))),
+    );
+    const discovered = await discoverMovies({
+      ...base,
+      genre: ctx.genreIds?.[0],
+      sort: "rating",
+      ratingGte: 6,
+    });
+    movies = watchable(
+      dedupe([...recPools.flatMap((r) => r.results), ...discovered.results], exclude),
+      ctx,
+    );
+    reason = ctx.genreIds?.length
+      ? "Group pick from shared genres and taste-adjacent recommendations."
+      : "Group pick balancing recommendations from everyone's selected movies.";
+    labels.push(trustBadge("ai_prediction"));
   } else {
     const filters = { ...base, ...energyFilters(ctx.energy), ...brainFilters(ctx.brain) };
     const [pool, discovered] = await Promise.all([

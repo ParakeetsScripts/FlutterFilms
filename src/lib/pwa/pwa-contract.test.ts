@@ -29,7 +29,9 @@ describe("PWA contract", () => {
     const sw = readFileSync(join(process.cwd(), "public/sw.js"), "utf8");
     expect(sw).toContain("/api/");
     expect(sw).toContain("isPrivateRequest");
-    expect(sw).toContain("flutter-films-shell-v2");
+    expect(sw).toContain("flutter-films-shell-v4");
+    expect(sw).toContain("isDocumentNavigation");
+    expect(sw).toContain("isPassthroughRequest");
   });
 
   it("install capability never claims native store distribution", () => {

@@ -1,147 +1,335 @@
 "use client";
 
-import { DECADES, FEATURED_GENRES, LANGUAGES, REGIONS } from "@/lib/regions";
+import {
+  activeDecadeFromDraft,
+  buildMoviesHrefFromDraft,
+  emptyFilterDraft,
+  filterDraftFromParams,
+  type FilterDraft,
+} from "@/lib/discover/filter-draft";
+import { countActiveFilters, SORT_LABELS } from "@/lib/discover/filters";
+import {
+  COUNTRY_CONTINENTS,
+  DECADES,
+  LANGUAGES,
+  MOVIE_GENRES,
+  countriesByContinent,
+  findCountry,
+  searchCountries,
+} from "@/lib/regions";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-export function FilterDrawer() {
+type FilterTab = "filters" | "regions";
+
+export function FilterDrawer({ onNavigate }: { onNavigate?: () => void } = {}) {
   const router = useRouter();
   const params = useSearchParams();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<FilterTab>("filters");
+  const [draft, setDraft] = useState<FilterDraft>(emptyFilterDraft);
+  const [countryQuery, setCountryQuery] = useState("");
+  const paramString = params.toString();
+
+  useEffect(() => {
+    setDraft(filterDraftFromParams(params));
+  }, [paramString, params]);
+
+  const activeDecade = activeDecadeFromDraft(draft);
+
+  const appliedDraft = useMemo(() => filterDraftFromParams(params), [params]);
 
   const chips = useMemo(() => {
-    const items: Array<{ label: string; key: string }> = [];
-    const genre = params.get("genre");
-    const language = params.get("language");
-    const year = params.get("year");
-    const rating = params.get("ratingGte");
-    const region = params.get("region");
-    if (genre) items.push({ label: FEATURED_GENRES.find((item) => String(item.id) === genre)?.name ?? `Genre ${genre}`, key: "genre" });
-    if (language) items.push({ label: LANGUAGES.find((item) => item.code === language)?.name ?? language, key: "language" });
-    if (year) items.push({ label: year, key: "year" });
-    if (rating) items.push({ label: `TMDB ${rating}+`, key: "ratingGte" });
-    if (region) items.push({ label: region, key: "region" });
+    const items: Array<{ label: string; next: FilterDraft }> = [];
+    if (appliedDraft.genre) {
+      const genre = MOVIE_GENRES.find((item) => String(item.id) === appliedDraft.genre);
+      items.push({
+        label: genre?.name ?? `Genre ${appliedDraft.genre}`,
+        next: { ...appliedDraft, genre: "" },
+      });
+    }
+    if (appliedDraft.language) {
+      items.push({
+        label: LANGUAGES.find((item) => item.code === appliedDraft.language)?.name ?? appliedDraft.language,
+        next: { ...appliedDraft, language: "" },
+      });
+    }
+    if (appliedDraft.country) {
+      items.push({
+        label: findCountry(appliedDraft.country)?.name ?? appliedDraft.country,
+        next: { ...appliedDraft, country: "" },
+      });
+    }
+    if (appliedDraft.year) {
+      items.push({
+        label: appliedDraft.year,
+        next: { ...appliedDraft, year: "" },
+      });
+    }
+    const appliedDecade = activeDecadeFromDraft(appliedDraft);
+    if (appliedDecade != null) {
+      items.push({
+        label: `${appliedDecade}s`,
+        next: { ...appliedDraft, yearGte: "", yearLte: "" },
+      });
+    }
+    if (appliedDraft.ratingGte) {
+      items.push({
+        label: `TMDB ${appliedDraft.ratingGte}+`,
+        next: { ...appliedDraft, ratingGte: "" },
+      });
+    }
+    if (appliedDraft.sort && appliedDraft.sort !== "popularity") {
+      items.push({
+        label: `Sort: ${SORT_LABELS[appliedDraft.sort] ?? appliedDraft.sort}`,
+        next: { ...appliedDraft, sort: "popularity" },
+      });
+    }
     return items;
-  }, [params]);
+  }, [appliedDraft]);
 
-  function update(name: string, value: string) {
-    const next = new URLSearchParams(params.toString());
-    if (value) next.set(name, value);
-    else next.delete(name);
-    next.delete("page");
-    router.push(`/movies?${next.toString()}`);
+  const activeFilterCount = countActiveFilters(appliedDraft);
+
+  const filteredCountries = useMemo(() => searchCountries(countryQuery), [countryQuery]);
+
+  function patchDraft(patch: Partial<FilterDraft>) {
+    setDraft((current) => ({ ...current, ...patch }));
+  }
+
+  function applyDraft(next: FilterDraft) {
+    setDraft(next);
+    onNavigate?.();
+    router.push(buildMoviesHrefFromDraft(next));
+    setOpen(false);
+  }
+
+  function applyFilters() {
+    applyDraft(draft);
   }
 
   function clearAll() {
+    setDraft(emptyFilterDraft());
+    setCountryQuery("");
+    onNavigate?.();
     router.push("/movies");
     setOpen(false);
+  }
+
+  function setDecade(decade: number) {
+    setDraft((current) => {
+      const active = activeDecadeFromDraft(current);
+      if (active === decade) {
+        return { ...current, yearGte: "", yearLte: "" };
+      }
+      return {
+        ...current,
+        year: "",
+        yearGte: String(decade),
+        yearLte: String(decade + 9),
+      };
+    });
   }
 
   const panel = (
     <div className="filter-drawer__panel">
       <div className="filter-drawer__header">
-        <h2 className="filter-drawer__title">Filters</h2>
-        <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost text-sm">
+        <h2 className="filter-drawer__title">Browse catalog</h2>
+        <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost text-sm lg:hidden">
           Close
         </button>
       </div>
-      <div className="filter-drawer__grid">
-        <label className="filter-field">
-          <span>Genre</span>
-          <select defaultValue={params.get("genre") ?? ""} onChange={(event) => update("genre", event.target.value)}>
-            <option value="">All genres</option>
-            {FEATURED_GENRES.map((genre) => (
-              <option key={genre.id} value={genre.id}>{genre.name}</option>
-            ))}
-          </select>
-        </label>
-        <label className="filter-field">
-          <span>Year</span>
+
+      <div className="filter-drawer__tabs" role="tablist" aria-label="Filter sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "filters"}
+          className={`filter-drawer__tab ${tab === "filters" ? "is-active" : ""}`}
+          onClick={() => setTab("filters")}
+        >
+          Filters
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "regions"}
+          className={`filter-drawer__tab ${tab === "regions" ? "is-active" : ""}`}
+          onClick={() => setTab("regions")}
+        >
+          Regions
+        </button>
+      </div>
+
+      {tab === "filters" ? (
+        <>
+          <div className="filter-drawer__grid">
+            <label className="filter-field">
+              <span>Genre</span>
+              <select
+                value={draft.genre}
+                onChange={(event) => patchDraft({ genre: event.target.value })}
+                data-testid="filter-genre"
+              >
+                <option value="">All genres</option>
+                {MOVIE_GENRES.map((genre) => (
+                  <option key={genre.id} value={genre.id}>{genre.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="filter-field">
+              <span>Year</span>
+              <input
+                type="number"
+                placeholder="e.g. 2007"
+                value={draft.year}
+                onChange={(event) =>
+                  patchDraft({ year: event.target.value, yearGte: "", yearLte: "" })
+                }
+              />
+            </label>
+            <label className="filter-field">
+              <span>Language</span>
+              <select
+                value={draft.language}
+                onChange={(event) => patchDraft({ language: event.target.value })}
+                data-testid="filter-language"
+              >
+                <option value="">All languages</option>
+                {LANGUAGES.map((language) => (
+                  <option key={language.code} value={language.code}>{language.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="filter-field">
+              <span>Minimum TMDB rating</span>
+              <select
+                value={draft.ratingGte}
+                onChange={(event) => patchDraft({ ratingGte: event.target.value })}
+                data-testid="filter-rating"
+              >
+                <option value="">Any rating</option>
+                {[9, 8, 7, 6].map((value) => (
+                  <option key={value} value={value}>{value}+</option>
+                ))}
+              </select>
+            </label>
+            <label className="filter-field filter-field--wide">
+              <span>Sort by</span>
+              <select
+                value={draft.sort}
+                onChange={(event) => patchDraft({ sort: event.target.value })}
+                data-testid="filter-sort"
+              >
+                <option value="popularity">Popularity (TMDB)</option>
+                <option value="rating">Rating (TMDB)</option>
+                <option value="release_date">Release date</option>
+                <option value="title">Title</option>
+              </select>
+            </label>
+          </div>
+          <div className="filter-drawer__decades">
+            <p className="eyebrow">Decades</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {DECADES.map((decade) => (
+                <button
+                  key={decade}
+                  type="button"
+                  className={`filter-chip ${activeDecade === decade ? "is-active" : ""}`}
+                  onClick={() => setDecade(decade)}
+                >
+                  {decade}s
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="filter-drawer__regions">
+          <p className="text-sm text-[var(--text-secondary)]">
+            Filter by production country — pulls real titles from TMDB&apos;s global catalog.
+          </p>
           <input
-            type="number"
-            placeholder="e.g. 2007"
-            defaultValue={params.get("year") ?? ""}
-            onBlur={(event) => update("year", event.target.value)}
+            type="search"
+            className="filter-drawer__country-search"
+            placeholder="Search countries…"
+            value={countryQuery}
+            onChange={(event) => setCountryQuery(event.target.value)}
+            aria-label="Search countries"
           />
-        </label>
-        <label className="filter-field">
-          <span>Language</span>
-          <select defaultValue={params.get("language") ?? ""} onChange={(event) => update("language", event.target.value)}>
-            <option value="">All languages</option>
-            {LANGUAGES.map((language) => (
-              <option key={language.code} value={language.code}>{language.name}</option>
-            ))}
-          </select>
-        </label>
-        <label className="filter-field">
-          <span>Region</span>
-          <select defaultValue={params.get("region") ?? ""} onChange={(event) => update("region", event.target.value)}>
-            <option value="">Any region</option>
-            {REGIONS.map((region) => (
-              <option key={region.code} value={region.code}>{region.name}</option>
-            ))}
-          </select>
-        </label>
-        <label className="filter-field">
-          <span>Minimum TMDB rating</span>
-          <select defaultValue={params.get("ratingGte") ?? ""} onChange={(event) => update("ratingGte", event.target.value)}>
-            <option value="">Any rating</option>
-            {[9, 8, 7, 6].map((value) => (
-              <option key={value} value={value}>{value}+</option>
-            ))}
-          </select>
-        </label>
-        <label className="filter-field">
-          <span>Sort by</span>
-          <select defaultValue={params.get("sort") ?? "popularity"} onChange={(event) => update("sort", event.target.value)}>
-            <option value="popularity">Popularity (TMDB)</option>
-            <option value="rating">Rating (TMDB)</option>
-            <option value="release_date">Release date</option>
-            <option value="title">Title</option>
-          </select>
-        </label>
-      </div>
-      <div className="filter-drawer__decades">
-        <p className="eyebrow">Decades</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {DECADES.map((decade) => (
-            <button
-              key={decade}
-              type="button"
-              className="filter-chip"
-              onClick={() => {
-                const next = new URLSearchParams(params.toString());
-                next.set("yearGte", String(decade));
-                next.set("yearLte", String(decade + 9));
-                next.delete("page");
-                router.push(`/movies?${next.toString()}`);
-                setOpen(false);
-              }}
-            >
-              {decade}s
-            </button>
-          ))}
+          <button
+            type="button"
+            className={`filter-chip ${!draft.country ? "is-active" : ""}`}
+            onClick={() => patchDraft({ country: "" })}
+          >
+            All countries
+          </button>
+          {countryQuery ? (
+            <div className="filter-drawer__country-list">
+              {filteredCountries.map((country) => (
+                <button
+                  key={country.code}
+                  type="button"
+                  className={`filter-chip ${draft.country === country.code ? "is-active" : ""}`}
+                  onClick={() => patchDraft({ country: country.code })}
+                >
+                  {country.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            COUNTRY_CONTINENTS.map((continent) => {
+              const countries = countriesByContinent(continent);
+              if (!countries.length) return null;
+              return (
+                <div key={continent} className="filter-drawer__continent">
+                  <p className="eyebrow">{continent}</p>
+                  <div className="filter-drawer__country-list">
+                    {countries.map((country) => (
+                      <button
+                        key={country.code}
+                        type="button"
+                        className={`filter-chip ${draft.country === country.code ? "is-active" : ""}`}
+                        onClick={() => patchDraft({ country: country.code })}
+                      >
+                        {country.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
-      </div>
+      )}
+
       <div className="filter-drawer__actions">
-        <button type="button" onClick={clearAll} className="btn btn-ghost">Clear all</button>
-        <button type="button" onClick={() => setOpen(false)} className="btn btn-primary">Apply</button>
+        <button type="button" onClick={clearAll} className="btn btn-ghost" data-testid="movie-filter-clear">
+          Clear all
+        </button>
+        <button type="button" onClick={applyFilters} className="btn btn-primary" data-testid="movie-filter-apply">
+          Apply filters
+        </button>
       </div>
     </div>
   );
 
   return (
-    <div className="filter-drawer">
+    <div className="filter-drawer" data-testid="movie-filters">
       <div className="filter-drawer__toolbar">
-        <button type="button" onClick={() => setOpen(true)} className="btn btn-secondary">
-          Filters {chips.length ? `(${chips.length})` : ""}
+        <button type="button" onClick={() => setOpen(true)} className="btn btn-secondary lg:hidden">
+          Filters {activeFilterCount ? `(${activeFilterCount})` : ""}
         </button>
         <div className="hidden lg:block lg:flex-1">{panel}</div>
       </div>
       {chips.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {chips.map((chip) => (
-            <button key={chip.key} type="button" onClick={() => update(chip.key, "")} className="filter-chip is-active">
+            <button
+              key={chip.label}
+              type="button"
+              onClick={() => applyDraft(chip.next)}
+              className="filter-chip is-active"
+            >
               {chip.label} ×
             </button>
           ))}

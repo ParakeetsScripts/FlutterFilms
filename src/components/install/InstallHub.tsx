@@ -1,17 +1,16 @@
 "use client";
 
+import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { ScrollReveal } from "@/components/scrollytelling/ScrollReveal";
 import { track } from "@/lib/analytics/track";
 import { SITE_NAME } from "@/lib/brand";
 import {
   detectInstallPlatform,
-  getDeferredInstallPrompt,
-  isStandalonePwa,
-  triggerInstallPrompt,
   type InstallPlatform,
 } from "@/lib/pwa/install-prompt";
 import {
   getInstallCapability,
+  manualInstallStepsFor,
   uninstallInstructionsFor,
   type InstallMethod,
 } from "@/lib/pwa/platform";
@@ -28,57 +27,9 @@ const PLATFORMS: Array<{ id: InstallPlatform | "ios" | "ipad"; label: string }> 
   { id: "linux", label: "Linux / ChromeOS" },
 ];
 
-function instructionsFor(platform: InstallPlatform, siteLabel: string, siteUrl: string): string[] {
-  switch (platform) {
-    case "ios":
-    case "ipad":
-      return [
-        `Open ${SITE_NAME} in Safari at ${siteLabel}.`,
-        "Tap the Share button.",
-        "Choose Add to Home Screen.",
-        "Confirm the name FlutterFilms.",
-        "Tap Add.",
-        "iOS does not expose an automatic Install button in every browser — manual Add to Home Screen is the supported path.",
-      ];
-    case "android":
-      return [
-        `Open ${SITE_NAME} in Chrome or a compatible browser at ${siteLabel}.`,
-        "Open the browser menu (⋮).",
-        "Choose Install app or Add to Home screen (wording varies).",
-        "Confirm installation.",
-        "Some Android browsers only support manual shortcuts.",
-      ];
-    case "mac":
-      return [
-        `Open ${SITE_NAME} in Chrome or Edge at ${siteUrl}.`,
-        "Look for the install icon in the address bar, or open the browser menu.",
-        "Choose Install FlutterFilms.",
-        "Safari on macOS may use File → Add to Dock or Share → Add to Dock depending on version.",
-      ];
-    case "windows":
-      return [
-        `Open ${SITE_NAME} in Chrome or Edge at ${siteUrl}.`,
-        "Look for the install icon in the address bar.",
-        "Or open the browser menu and choose Install FlutterFilms.",
-      ];
-    case "linux":
-      return [
-        `Open ${SITE_NAME} in Chrome or another Chromium browser at ${siteUrl}.`,
-        "ChromeOS and Linux desktops may show Install in the address bar or app menu.",
-        "If no install control appears, bookmark the site or pin the tab.",
-      ];
-    default:
-      return [
-        `Open ${SITE_NAME} at ${siteUrl}.`,
-        "Your browser may support installing to the home screen, dock, or launcher.",
-        "If installation is unavailable, continue using FlutterFilms in the browser.",
-      ];
-  }
-}
-
 function methodLabel(method: InstallMethod): string {
-  if (method === "automatic") return "Automatic install available";
-  if (method === "manual") return "Manual installation required";
+  if (method === "automatic") return "One-tap install available";
+  if (method === "manual") return "Manual install — follow the steps below";
   return "Browser install unavailable";
 }
 
@@ -102,9 +53,8 @@ const FAQ = [
 ];
 
 export function InstallHub() {
+  const { canInstall, standalone, install } = usePwaInstall();
   const [platform, setPlatform] = useState<InstallPlatform>("unknown");
-  const [standalone, setStandalone] = useState(false);
-  const [installReady, setInstallReady] = useState(false);
   const [installMessage, setInstallMessage] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -113,18 +63,6 @@ export function InstallHub() {
 
   useEffect(() => {
     setPlatform(detectInstallPlatform());
-    setStandalone(isStandalonePwa());
-    const sync = () => {
-      setInstallReady(Boolean(getDeferredInstallPrompt()));
-      setStandalone(isStandalonePwa());
-    };
-    sync();
-    window.addEventListener("ff-install-prompt-ready", sync);
-    window.addEventListener("ff-pwa-installed", sync);
-    return () => {
-      window.removeEventListener("ff-install-prompt-ready", sync);
-      window.removeEventListener("ff-pwa-installed", sync);
-    };
   }, []);
 
   const resolvedPlatform = useMemo<InstallPlatform>(() => {
@@ -133,18 +71,31 @@ export function InstallHub() {
     return detected === "unknown" ? "windows" : detected;
   }, [platform]);
 
-  const capability = useMemo(
-    () => getInstallCapability(installReady),
-    [installReady, standalone, platform],
+  const capability = useMemo(() => getInstallCapability(canInstall), [canInstall, standalone, platform]);
+
+  const stepsForCurrentBrowser = useMemo(
+    () => manualInstallStepsFor(resolvedPlatform, capability.browserLabel, siteLabel, siteUrl),
+    [resolvedPlatform, capability.browserLabel, siteLabel, siteUrl],
+  );
+
+  const stepsForDetectedDevice = useMemo(
+    () =>
+      manualInstallStepsFor(
+        capability.platform === "unknown" ? resolvedPlatform : capability.platform,
+        capability.browserLabel,
+        siteLabel,
+        siteUrl,
+      ),
+    [capability.platform, capability.browserLabel, resolvedPlatform, siteLabel, siteUrl],
   );
 
   async function onInstallClick() {
     setInstallMessage(null);
-    const outcome = await triggerInstallPrompt();
-    if (outcome === "accepted") {
+    const accepted = await install();
+    if (accepted) {
       setInstallMessage("FlutterFilms installation started in your browser.");
       track("pwa_installed", { source: "install_page" });
-    } else if (outcome === "dismissed") {
+    } else if (canInstall) {
       setInstallMessage("Install dismissed — use the manual steps below.");
     } else {
       setInstallMessage(capability.summary);
@@ -162,26 +113,40 @@ export function InstallHub() {
           to the application shell and safe cached pages — {SITE_NAME} does not provide offline movie streaming.
         </p>
 
-        <div className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--surface-1)] px-4 py-3 text-sm">
-          <p className="font-medium">{methodLabel(capability.method)}</p>
-          <p className="mt-1 text-[var(--text-secondary)]">{capability.summary}</p>
-          <p className="mt-2 text-xs text-[var(--text-muted)]">Detected: {capability.browserLabel}</p>
-        </div>
-
         {standalone ? (
           <p className="mt-6 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-4 py-3 text-sm">
             {SITE_NAME} is already installed on this device.
           </p>
         ) : (
-          <div className="mt-6 flex flex-wrap gap-3">
-            {installReady && capability.method === "automatic" ? (
-              <button type="button" className="btn btn-primary" onClick={onInstallClick}>
-                Install {SITE_NAME}
-              </button>
-            ) : null}
-            <Link href="/" className="btn btn-secondary">Continue in browser</Link>
-            <Link href="/install" className="btn btn-ghost">Refresh install status</Link>
-          </div>
+          <>
+            <div className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--surface-1)] px-4 py-4">
+              <p className="font-medium">{methodLabel(capability.method)}</p>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">{capability.summary}</p>
+              <p className="mt-2 text-xs text-[var(--text-muted)]">Detected: {capability.browserLabel}</p>
+
+              {canInstall ? (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button type="button" className="btn btn-primary" onClick={() => void onInstallClick()}>
+                    Install {SITE_NAME}
+                  </button>
+                  <Link href="/" className="btn btn-secondary">Continue in browser</Link>
+                </div>
+              ) : (
+                <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-[var(--text-secondary)]">
+                  {stepsForDetectedDevice.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              )}
+            </div>
+
+            {!canInstall && (
+              <p className="mt-4 text-sm text-[var(--text-muted)]">
+                Safari and iOS do not support a download button — use the steps above to add {SITE_NAME} to your Dock or
+                Home Screen.
+              </p>
+            )}
+          </>
         )}
         {installMessage && <p className="mt-3 text-sm text-[var(--text-secondary)]">{installMessage}</p>}
       </ScrollReveal>
@@ -202,7 +167,10 @@ export function InstallHub() {
       </ScrollReveal>
 
       <ScrollReveal>
-        <h2 className="section-title">Choose your platform</h2>
+        <h2 className="section-title">Other platforms</h2>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">
+          Using a different device? Pick your platform for tailored steps.
+        </p>
         <div className="install-platform-tabs mt-4" role="tablist" aria-label="Install platform">
           {PLATFORMS.map((p) => (
             <button
@@ -226,13 +194,14 @@ export function InstallHub() {
           className="mt-6"
         >
           <ol className="list-decimal space-y-2 pl-5 text-sm text-[var(--text-secondary)]">
-            {instructionsFor(resolvedPlatform, siteLabel, siteUrl).map((step) => (
+            {stepsForCurrentBrowser.map((step) => (
               <li key={step}>{step}</li>
             ))}
           </ol>
         </div>
         <p className="mt-4 text-xs text-[var(--text-muted)]">
-          Canonical URL: <a href={siteUrl} className="text-[var(--accent)] underline-offset-2 hover:underline">{siteUrl}</a>
+          Canonical URL:{" "}
+          <a href={siteUrl} className="text-[var(--accent)] underline-offset-2 hover:underline">{siteUrl}</a>
         </p>
       </ScrollReveal>
 

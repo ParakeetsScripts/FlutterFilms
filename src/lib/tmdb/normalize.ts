@@ -16,6 +16,7 @@ import type {
   WatchProviderGroup,
 } from "./types";
 import { TMDB_SOURCE_VERSION } from "./constants";
+import { getGenreLookup } from "./genres";
 
 type TmdbGenre = { id?: number; name?: string };
 type TmdbCompany = { id?: number; name?: string };
@@ -345,12 +346,13 @@ export function normalizeMovie(
 }
 
 export function normalizePagedMovies(raw: TmdbPagedRaw, retrievedAt = new Date().toISOString()): PagedResult<MovieSummary> {
+  const genreLookup = getGenreLookup();
   return {
     page: raw.page ?? 1,
     totalPages: raw.total_pages ?? 1,
     totalResults: raw.total_results ?? 0,
     results: (raw.results ?? [])
-      .map((item) => normalizeMovieSummary(item, retrievedAt))
+      .map((item) => normalizeMovieSummary(item, retrievedAt, genreLookup))
       .filter((item): item is MovieSummary => item !== null),
   };
 }

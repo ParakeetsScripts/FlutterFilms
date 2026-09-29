@@ -11,7 +11,7 @@ const SORT_MAP = {
 } as const;
 
 export async function discoverMovies(query: DiscoverQuery = {}): Promise<PagedResult<MovieSummary>> {
-  const direction = query.sortDirection ?? "desc";
+  const direction = query.sort === "title" ? "asc" : (query.sortDirection ?? "desc");
   const sortBy = `${SORT_MAP[query.sort ?? "popularity"]}.${direction}`;
   const raw = await tmdbFetch<TmdbPagedRaw>(
     "/discover/movie",
@@ -25,11 +25,14 @@ export async function discoverMovies(query: DiscoverQuery = {}): Promise<PagedRe
       "with_runtime.lte": query.runtimeLte,
       "vote_average.gte": query.ratingGte,
       "vote_average.lte": query.ratingLte,
-      with_original_language: query.language,
+      language: query.uiLanguage,
+      with_original_language: query.originalLanguage ?? query.language,
+      with_origin_country: query.originCountry,
       region: query.region,
       sort_by: sortBy,
       include_adult: false,
-      "vote_count.gte": query.sort === "rating" ? 100 : undefined,
+      "vote_count.gte": query.voteCountGte ?? (query.sort === "rating" ? 100 : undefined),
+      "vote_count.lte": query.voteCountLte,
     },
     {
       ttlMs: CACHE_TTL.list,
@@ -39,10 +42,11 @@ export async function discoverMovies(query: DiscoverQuery = {}): Promise<PagedRe
   return normalizePagedMovies(raw);
 }
 
-export function getHiddenGems(page = 1, language?: string) {
+export function getHiddenGems(page = 1, prefs?: { uiLanguage?: string; originalLanguage?: string }) {
   return discoverMovies({
     page,
-    language,
+    uiLanguage: prefs?.uiLanguage,
+    originalLanguage: prefs?.originalLanguage,
     ratingGte: 7,
     sort: "rating",
     yearGte: 1970,

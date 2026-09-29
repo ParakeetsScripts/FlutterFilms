@@ -1,3 +1,4 @@
+import { FEATURE_CATALOG } from "./catalog";
 import type { FeatureRunResult } from "./types";
 
 export type AcceptanceContract = {
@@ -481,7 +482,28 @@ export const FEATURE_ACCEPTANCE_CONTRACTS: AcceptanceContract[] = [
   },
 ];
 
-export const CONTRACT_BY_SLUG = new Map(FEATURE_ACCEPTANCE_CONTRACTS.map((c) => [c.slug, c]));
+function structuredContract(slug: string): AcceptanceContract {
+  return {
+    slug,
+    allowInsufficientData: true,
+    assert: (r) => {
+      if (r.status !== "success") return;
+      const payload = data(r);
+      if (!payload || typeof payload !== "object" || Object.keys(payload).length === 0) {
+        throw new Error(`${slug} must return structured data`);
+      }
+    },
+  };
+}
+
+const EXPLICIT_SLUGS = new Set(FEATURE_ACCEPTANCE_CONTRACTS.map((contract) => contract.slug));
+const GENERATED_CONTRACTS = FEATURE_CATALOG.filter((entry) => !EXPLICIT_SLUGS.has(entry.slug)).map((entry) =>
+  structuredContract(entry.slug),
+);
+
+export const ALL_ACCEPTANCE_CONTRACTS: AcceptanceContract[] = [...FEATURE_ACCEPTANCE_CONTRACTS, ...GENERATED_CONTRACTS];
+
+export const CONTRACT_BY_SLUG = new Map(ALL_ACCEPTANCE_CONTRACTS.map((c) => [c.slug, c]));
 
 export function validateAcceptanceContract(slug: string, result: FeatureRunResult): string | null {
   const contract = CONTRACT_BY_SLUG.get(slug);

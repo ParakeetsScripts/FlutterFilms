@@ -1,7 +1,9 @@
 "use client";
 
+import { BrandMark } from "@/components/brand/BrandMark";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/brand";
+import { InstallButton } from "@/components/pwa/InstallButton";
+import { DEVELOPER_CREDIT, SITE_NAME, SITE_TAGLINE } from "@/lib/brand";
 import { Logo } from "@/components/layout/Logo";
 import { MobileNav } from "@/components/layout/MobileNav";
 import {
@@ -50,17 +52,18 @@ const FOOTER_PLATFORM = [
 ];
 
 function FooterColumn({ title, links }: { title: string; links: Array<{ href: string; label: string }> }) {
+  const headingId = `footer-${title.toLowerCase().replace(/\s+/g, "-")}`;
   return (
-    <details className="footer-column" open>
-      <summary className="footer-column__title">{title}</summary>
-      <nav className="footer-column__nav">
+    <div className="footer-column" role="group" aria-labelledby={headingId}>
+      <h3 id={headingId} className="footer-column__title">{title}</h3>
+      <nav className="footer-column__nav" aria-label={title}>
         {links.map((item) => (
           <Link key={item.href} href={item.href} className="footer-column__link">
             {item.label}
           </Link>
         ))}
       </nav>
-    </details>
+    </div>
   );
 }
 
@@ -159,6 +162,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="search-trigger__label">Search</span>
               <kbd>{modKey} K</kbd>
             </button>
+            <InstallButton variant="header" />
             <Link href={user ? "/account" : "/login"} className="btn btn-ghost btn-header-auth">
               {user ? "Account" : "Sign in"}
             </Link>
@@ -171,6 +175,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <footer className="site-footer">
         <div className="site-footer__grid">
           <div className="site-footer__brand-col">
+            <BrandMark size={88} className="site-footer__logo" />
+            <p className="site-footer__brand">{DEVELOPER_CREDIT}</p>
             <p className="site-footer__tagline">
               {SITE_TAGLINE} Metadata from TMDB and IMDb — {SITE_NAME} does not host films.
             </p>

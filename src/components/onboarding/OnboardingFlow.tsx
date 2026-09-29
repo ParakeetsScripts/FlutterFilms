@@ -248,7 +248,7 @@ export function OnboardingFlow() {
           {state.favoriteMovies.length < MIN_FAVORITE_MOVIES && (
             <p className="onboarding-error">Select at least {MIN_FAVORITE_MOVIES} movies to continue.</p>
           )}
-          {saveError && <p className="onboarding-error">{saveError}</p>}
+          {saveError ? <p className="onboarding-error" role="alert">{saveError}</p> : null}
           <button
             type="button"
             className="btn btn-primary"

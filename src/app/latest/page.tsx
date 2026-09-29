@@ -4,7 +4,7 @@ import { getUpcomingMovies } from "@/lib/tmdb/movies";
 import { SITE_NAME } from "@/lib/brand";
 import type { Metadata } from "next";
 
-export const revalidate = 600;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Latest",

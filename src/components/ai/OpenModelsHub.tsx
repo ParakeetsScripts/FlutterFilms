@@ -35,7 +35,7 @@ export function OpenModelsHub() {
           <span>{models.length} in registry</span>
           <span>{ollamaConfigured ? "Ollama configured" : "Set OLLAMA_BASE_URL"}</span>
         </div>
-        <Link href="/copilot" className="btn btn-primary mt-6">Open AI Copilot</Link>
+        <Link href="/flutter-ai" className="btn btn-primary mt-6">Open FlutterAI</Link>
       </header>
 
       <section className="open-models__free">

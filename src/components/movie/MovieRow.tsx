@@ -1,4 +1,4 @@
-import { CinematicRail } from "@/components/navigation/CinematicRail";
+import { CinematicRail, type RailDepth } from "@/components/navigation/CinematicRail";
 import type { MovieSummary } from "@/lib/tmdb/types";
 import { MovieCard } from "./MovieCard";
 import Link from "next/link";
@@ -13,6 +13,7 @@ export function MovieRow({
   upcoming,
   bare = false,
   railId,
+  depth = "flat",
 }: {
   title: string;
   movies: MovieSummary[];
@@ -25,6 +26,7 @@ export function MovieRow({
   bare?: boolean;
   /** Stable id for horizontal scroll position memory */
   railId?: string;
+  depth?: RailDepth;
 }) {
   if (!movies.length) {
     return (
@@ -41,7 +43,7 @@ export function MovieRow({
   const storageKey = railId ?? (title ? title.toLowerCase().replace(/\s+/g, "-") : undefined);
 
   const scroller = (
-    <CinematicRail label={label} storageKey={storageKey}>
+    <CinematicRail label={label} storageKey={storageKey} depth={depth}>
       {movies.map((movie) => (
         <MovieCard
           key={movie.id}

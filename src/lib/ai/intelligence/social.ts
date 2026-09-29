@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getGenreList } from "@/lib/tmdb/configuration";
 import { computeTasteDna } from "./taste";
 import { runRecommendation } from "./recommendations";
 import { trustBadge } from "../trust";
@@ -50,12 +51,17 @@ export async function tasteMatchPercent(a: TasteProfile, b: TasteProfile) {
 export async function groupPick(profiles: TasteProfile[], history: number[] = []) {
   const mergedIds = [...new Set([...profiles.flatMap((p) => p.movieIds), ...history])];
   const intersection = await tasteIntersection(profiles);
+  const genreList = await getGenreList().catch(() => ({ genres: [] as Array<{ id: number; name: string }> }));
+  const genreIds = intersection.sharedGenres
+    .map((name) => genreList.genres.find((g) => g.name === name)?.id)
+    .filter((id): id is number => typeof id === "number");
   const rec = await runRecommendation({
     mode: "group",
     watchlist: mergedIds,
     favorites: mergedIds.slice(0, 10),
     history,
     groupTasteIds: profiles.map((p) => p.movieIds),
+    genreIds,
   });
 
   const overlaps = intersection.sharedGenres.length

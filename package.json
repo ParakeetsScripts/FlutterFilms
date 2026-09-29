@@ -22,9 +22,17 @@
     "cap:sync": "npx cap sync",
     "cap:ios": "npx cap open ios",
     "launch:check": "tsx scripts/launch-checklist.ts",
-    "icons:generate": "python3 scripts/generate-pwa-icons.py"
+    "media:transcode": "tsx scripts/media-transcode.ts",
+    "icons:generate": "python3 scripts/generate-pwa-icons.py",
+    "intelligence:audit": "tsx scripts/intelligence-audit.ts",
+    "intelligence:production-check": "tsx scripts/intelligence-production-check.ts",
+    "intelligence:verify": "tsx scripts/intelligence-production-check.ts && vitest run src/lib/ai/features"
   },
   "dependencies": {
+    "@aws-sdk/client-ivs": "^3.1141.0",
+    "@aws-sdk/client-mediaconvert": "^3.1141.0",
+    "@aws-sdk/client-s3": "^3.1141.0",
+    "@aws-sdk/s3-request-presigner": "^3.1141.0",
     "@capacitor/app": "^6.0.3",
     "@capacitor/cli": "^6.2.2",
     "@capacitor/core": "^6.2.2",
@@ -32,6 +40,9 @@
     "@capacitor/ios": "^6.2.2",
     "@capacitor/share": "^6.0.4",
     "@neondatabase/serverless": "^1.1.0",
+    "artplayer": "^5.4.0",
+    "artplayer-plugin-danmuku": "^5.3.0",
+    "artplayer-plugin-iframe": "^1.0.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
     "hls.js": "^1.7.3",
@@ -39,22 +50,24 @@
     "next": "16.3.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "three": "^0.186.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.186.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vite": "^8.3.1",
-    "vitest": "^5.0.2",
-    "@playwright/test": "^1.55.0"
+    "vitest": "^5.0.2"
   }
 }

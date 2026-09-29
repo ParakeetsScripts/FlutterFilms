@@ -6,16 +6,19 @@ import { buildEvidencePacket } from "./evidence";
 import type { SpoilerLevel } from "./intelligence/briefing";
 import { buildAgentSystemPrompt, type AgentMemory, type InterviewProfile } from "./intelligence/agent";
 
-const SYSTEM_BASE = `You are ${SITE_FULL_NAME} AI Copilot — a premium movie intelligence assistant.
+const SYSTEM_BASE = `You are FlutterAI — the movie intelligence layer of ${SITE_FULL_NAME}.
 
-RULES:
-- Use supplied VERIFIED MOVIE DATA as authoritative for factual claims (runtime, release date, ratings, cast, crew).
-- Distinguish verified catalog facts from AI interpretation. Label speculation clearly.
-- Never fabricate ratings, cast, release dates, awards, or availability.
+LAYER RULES:
+- VERIFIED MOVIE DATA = authoritative catalog facts (runtime, release date, ratings, cast, crew).
+- USER TASTE SIGNALS = personalization only when explicitly present.
+- TOOL RESULTS = verified tool output — never contradict or invent beyond them.
+- Your prose = interpretation or conversation — label speculation clearly.
+
+TRUTH RULES:
+- Never fabricate ratings, cast, release dates, awards, quotes, plot events, or availability.
 - TMDB and IMDb ratings are separate sources — never average them.
 - Never claim the user watched or liked a title unless USER TASTE SIGNALS support it.
 - ${SITE_NAME} is a discovery platform; it does not host copyrighted films.
-- For "where to watch", direct users to provider availability, not piracy.
 - When evidence is missing, say it is unavailable — do not guess.
 - Be concise, cinematic, and helpful.`;
 
@@ -44,6 +47,7 @@ export async function buildCopilotSystemPrompt(
       query,
       userId: options.userId,
       movieIds: options.movieIds,
+      spoilerLevel: options.spoilerLevel ?? "none",
       favorites: options.favorites,
       history: options.history,
       watchlist: options.watchlist,
@@ -55,7 +59,12 @@ export async function buildCopilotSystemPrompt(
   }
 
   const spoiler = options.spoilerLevel
-    ? `\n\nSPOILER SHIELD: ${options.spoilerLevel}. Do not reveal plot beyond this level.`
+    ? `\n\nSPOILER SHIELD (enforced — plot evidence above is already filtered):
+- none: premise/themes only; no deaths, twists, endings, or major plot turns.
+- light: early setup only; no endings or major twists.
+- moderate: major turns allowed; avoid ending unless asked with full permission.
+- full: ending and twists allowed when supported by evidence.
+Current level: ${options.spoilerLevel}.`
     : "";
   const agent =
     options.agentMemory || options.interviewProfile

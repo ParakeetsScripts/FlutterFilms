@@ -7,6 +7,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/",
     "/discover",
     "/copilot",
+    "/flutter-ai",
     "/tonight",
     "/my-cinema",
     "/watchlist",

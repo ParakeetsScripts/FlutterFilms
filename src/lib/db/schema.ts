@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 11;
 
 export const MIGRATIONS = `
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -571,4 +571,88 @@ CREATE INDEX IF NOT EXISTS idx_user_feedback_created ON user_feedback(created_at
 
 CREATE INDEX IF NOT EXISTS idx_analytics_events_user ON analytics_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_session ON analytics_events(session_id);
+`;
+
+export const MIGRATIONS_V10 = `
+CREATE TABLE IF NOT EXISTS media_assets (
+  id TEXT PRIMARY KEY,
+  tmdb_id INTEGER NOT NULL,
+  title TEXT,
+  status TEXT NOT NULL,
+  source_filename TEXT,
+  storage_path TEXT NOT NULL,
+  manifest_relpath TEXT,
+  playback_type TEXT NOT NULL DEFAULT 'hls',
+  duration_seconds INTEGER,
+  published INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_assets_movie ON media_assets(tmdb_id);
+CREATE INDEX IF NOT EXISTS idx_media_assets_status ON media_assets(status);
+
+CREATE TABLE IF NOT EXISTS media_upload_sessions (
+  id TEXT PRIMARY KEY,
+  tmdb_id INTEGER NOT NULL,
+  filename TEXT NOT NULL,
+  total_bytes INTEGER NOT NULL,
+  chunk_size INTEGER NOT NULL,
+  total_chunks INTEGER NOT NULL,
+  received_chunks INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL,
+  temp_path TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_upload_sessions_status ON media_upload_sessions(status);
+
+CREATE TABLE IF NOT EXISTS transcode_jobs (
+  id TEXT PRIMARY KEY,
+  asset_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  progress INTEGER NOT NULL DEFAULT 0,
+  error TEXT,
+  created_at TEXT NOT NULL,
+  started_at TEXT,
+  finished_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_transcode_jobs_asset ON transcode_jobs(asset_id);
+CREATE INDEX IF NOT EXISTS idx_transcode_jobs_status ON transcode_jobs(status);
+`;
+
+export const MIGRATIONS_V11 = `
+ALTER TABLE media_assets ADD COLUMN storage_backend TEXT NOT NULL DEFAULT 'local';
+ALTER TABLE media_assets ADD COLUMN s3_bucket TEXT;
+ALTER TABLE media_assets ADD COLUMN s3_source_key TEXT;
+ALTER TABLE media_assets ADD COLUMN cdn_url TEXT;
+ALTER TABLE media_assets ADD COLUMN drm_mode TEXT NOT NULL DEFAULT 'none';
+ALTER TABLE media_assets ADD COLUMN aws_job_id TEXT;
+
+ALTER TABLE media_upload_sessions ADD COLUMN storage_backend TEXT NOT NULL DEFAULT 'local';
+ALTER TABLE media_upload_sessions ADD COLUMN s3_upload_id TEXT;
+ALTER TABLE media_upload_sessions ADD COLUMN s3_key TEXT;
+
+ALTER TABLE transcode_jobs ADD COLUMN aws_job_id TEXT;
+ALTER TABLE transcode_jobs ADD COLUMN provider TEXT NOT NULL DEFAULT 'ffmpeg';
+
+CREATE TABLE IF NOT EXISTS live_channels (
+  id TEXT PRIMARY KEY,
+  tmdb_id INTEGER,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'idle',
+  ingest_endpoint TEXT NOT NULL,
+  stream_key TEXT NOT NULL,
+  rtmp_url TEXT NOT NULL,
+  playback_url TEXT NOT NULL,
+  ivs_channel_arn TEXT NOT NULL,
+  drm_mode TEXT NOT NULL DEFAULT 'none',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_live_channels_movie ON live_channels(tmdb_id);
+CREATE INDEX IF NOT EXISTS idx_live_channels_status ON live_channels(status);
 `;

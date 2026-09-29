@@ -1,5 +1,6 @@
 "use client";
 
+import { readApiError } from "@/lib/errors/public-message";
 import { useState } from "react";
 
 export function FeedbackDialog() {
@@ -21,17 +22,19 @@ export function FeedbackDialog() {
     });
     const data = await response.json();
     if (!response.ok) {
-      setStatus(data.error ?? "Failed to send feedback.");
+      setStatus(readApiError(data, "save") ?? "Failed to send feedback.");
       return;
     }
-    setStatus("Thank you — feedback received.");
+    const savedId = typeof data.id === "string" ? data.id : null;
+    setStatus(savedId ? `Thank you — feedback saved (${savedId.slice(0, 8)}…).` : "Thank you — feedback saved.");
     setMessage("");
-    setTimeout(() => setOpen(false), 1500);
+    setCategory("general");
+    setTimeout(() => setOpen(false), 2000);
   }
 
   if (!open) {
     return (
-      <button type="button" className="btn btn-ghost text-sm" onClick={() => setOpen(true)}>
+      <button type="button" className="btn btn-secondary feedback-trigger" onClick={() => setOpen(true)}>
         Send feedback
       </button>
     );

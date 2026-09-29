@@ -4,6 +4,7 @@ import { buildMovieBriefing } from "../intelligence/briefing";
 import { buildCreativeAsset } from "../intelligence/creative";
 import { buildInterviewProfile } from "../intelligence/interview";
 import { analyzePerson, findSimilarPeople } from "../intelligence/people";
+import { runAttentionRequirement } from "../intelligence/attention";
 import { runRecommendation, type RecommendMode } from "../intelligence/recommendations";
 import { semanticSearch } from "../intelligence/semantic-search";
 import { groupPick, tasteIntersection, tasteMatchPercent } from "../intelligence/social";
@@ -48,7 +49,6 @@ const RECOMMEND_SLUGS: Record<string, RecommendMode> = {
   "context-aware": "comfort",
   "energy-slider": "comfort",
   "brain-level": "challenge",
-  "attention-requirement": "background",
   "regret-predictor": "regret_check",
   "session-planner": "weekend_marathon",
   "double-feature": "double_feature",
@@ -320,6 +320,30 @@ export async function executeFeatureService(
         data: result,
         labels: result.labels ?? [trustBadge("metadata")],
         explanation: [result.hint],
+        ranAt: new Date().toISOString(),
+      };
+    }
+
+    if (def.slug === "attention-requirement") {
+      const anchorMovieId = Number(input.movieId) || undefined;
+      const attention = input.attention === "full" || input.attention === "background" ? input.attention : undefined;
+      const result = await runAttentionRequirement({
+        anchorMovieId,
+        attention,
+        watchlist,
+        favorites,
+        history,
+      });
+      if (!result.primary && !result.movies?.length) {
+        return insufficient(def, anchorMovieId ? "No similar titles found for that movie." : "Add a movie ID or watch history.");
+      }
+      return {
+        featureId: def.id,
+        slug: def.slug,
+        status: "success",
+        data: result,
+        labels: result.labels,
+        explanation: result.reason ? [result.reason] : undefined,
         ranAt: new Date().toISOString(),
       };
     }
@@ -769,9 +793,12 @@ export async function executeFeatureService(
         status: briefing ? "success" : "insufficient_data",
         data: {
           briefing,
-          prompts: prompts[def.slug] ?? ["Explore this title in Copilot for a generative deep dive."],
-          copilotPath: "/copilot",
-          note: "Metadata briefing included — connect a chat model in Copilot for generative expansion.",
+          capability: def.slug,
+          spoilerLevel,
+          prompts: prompts[def.slug] ?? ["Ask FlutterAI for a grounded expansion of this briefing."],
+          evidence: briefing?.sections ?? [],
+          limitations: ["Structured from catalog metadata. FlutterAI can expand this when a model is connected."],
+          copilotPath: "/flutter-ai",
         },
         labels: [trustBadge("metadata"), trustBadge("ai_interpretation")],
         ranAt: new Date().toISOString(),
@@ -797,7 +824,7 @@ export async function executeFeatureService(
           evidence: agent.evidence,
           actions: agent.actions,
           sessionContext: agent.sessionContext,
-          copilotPath: "/copilot",
+          copilotPath: "/flutter-ai",
         },
         labels: [trustBadge("metadata"), trustBadge("user")],
         explanation: [

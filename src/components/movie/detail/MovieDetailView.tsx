@@ -18,7 +18,9 @@ import {
   languageLabel,
 } from "@/lib/movie/detail-helpers";
 import { formatRelativeTime } from "@/lib/sync/freshness";
-import { getPrimaryTrailer, youtubeEmbedUrl } from "@/lib/tmdb/videos";
+import { getPrimaryTrailer } from "@/lib/tmdb/videos";
+import { MovieHeroBackground } from "@/components/movie/detail/MovieHeroBackground";
+import { MovieTrailerSection } from "@/components/movie/detail/MovieTrailerSection";
 import { getBackdropUrl, getPosterUrl } from "@/lib/tmdb/images";
 import type { Movie, MovieSummary } from "@/lib/tmdb/types";
 import { formatRuntime, moviePath } from "@/lib/slug";
@@ -93,11 +95,12 @@ export function MovieDetailView({
       <HistoryRecorder movieId={movie.id} />
       <StickyMovieBar movie={movie} playbackLabel={playbackLabel} playbackHref={playbackHref} heroId={HERO_ID} />
 
-      <header id={HERO_ID} className="detail-hero-v2">
-        {backdrop && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={backdrop} alt="" className="detail-hero-v2__backdrop" />
-        )}
+      <header id={HERO_ID} className="detail-hero-v2" data-testid="movie-hero">
+        <MovieHeroBackground
+          movieId={movie.id}
+          backdrop={backdrop}
+          initialVideos={movie.videos ?? []}
+        />
         <div className="detail-hero-v2__scrim" />
         <div className="detail-hero-v2__content page-container">
           <div className="detail-hero-v2__layout">
@@ -107,26 +110,44 @@ export function MovieDetailView({
             ) : (
               <div className="detail-hero-v2__poster poster-fallback flex items-end p-4 text-sm">{movie.title}</div>
             )}
-            <div className="detail-hero-v2__body">
+            <div className="detail-hero-v2__glass">
               {movie.tagline && <p className="detail-hero-v2__tagline">{movie.tagline}</p>}
               <h1 className="detail-hero-v2__title">{movie.title}</h1>
               {movie.originalTitle && movie.originalTitle !== movie.title && (
                 <p className="detail-hero-v2__original">{movie.originalTitle}</p>
               )}
-              <p className="detail-hero-v2__meta">
-                {[movie.year, formatRuntime(movie.runtime), certification, movie.genres.map((g) => g.name).join(", ")]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
+              <div className="detail-hero-v2__meta">
+                <p className="detail-hero-v2__meta-primary">
+                  {[movie.year, formatRuntime(movie.runtime), certification].filter(Boolean).join(" · ")}
+                </p>
+                {movie.genres.length > 0 && (
+                  <p className="detail-hero-v2__meta-genres">
+                    {movie.genres.map((genre) => genre.name).join(" · ")}
+                  </p>
+                )}
+              </div>
               <div className="detail-hero-v2__ratings">
-                <RatingBadge source="TMDB" rating={movie.tmdbRating ?? movie.voteAverage} voteCount={movie.tmdbVoteCount ?? movie.voteCount} variant="stacked" />
-                <RatingBadge source="IMDb" rating={movie.imdbRating} voteCount={movie.imdbVoteCount} variant="stacked" />
+                <RatingBadge
+                  source="TMDB"
+                  rating={movie.tmdbRating ?? movie.voteAverage}
+                  voteCount={movie.tmdbVoteCount ?? movie.voteCount}
+                  variant="stacked"
+                />
+                <RatingBadge
+                  source="IMDb"
+                  rating={movie.imdbRating}
+                  voteCount={movie.imdbVoteCount}
+                  variant="stacked"
+                />
               </div>
               {movie.metadataUpdatedAt && (
-                <p className="detail-hero-v2__freshness">Metadata synchronized {formatRelativeTime(movie.metadataUpdatedAt)}</p>
+                <p className="detail-hero-v2__sync">
+                  <span className="detail-hero-v2__sync-dot" aria-hidden="true" />
+                  Synced {formatRelativeTime(movie.metadataUpdatedAt)}
+                </p>
               )}
-              {heroSynopsis(movie.overview) && (
-                <p className="detail-hero-v2__synopsis">{heroSynopsis(movie.overview)}</p>
+              {heroSynopsis(movie.overview, 200) && (
+                <p className="detail-hero-v2__synopsis">{heroSynopsis(movie.overview, 200)}</p>
               )}
               <MovieDetailActions
                 movieId={movie.id}
@@ -174,21 +195,12 @@ export function MovieDetailView({
         <CastBlock cast={movie.credits.cast} />
         <CrewBlock crew={movie.credits.crew} />
 
-        {trailer && (
-          <section id="trailer" className="detail-section">
-            <p className="eyebrow mb-2">Official trailer</p>
-            <h2 className="section-title">Trailer</h2>
-            <div className="trailer-frame">
-              <iframe
-                title={trailer.name}
-                src={youtubeEmbedUrl(trailer.key)}
-                className="h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </section>
-        )}
+        <MovieTrailerSection
+          movieId={movie.id}
+          movieTitle={movie.title}
+          posterPath={movie.posterPath}
+          initialVideos={movie.videos ?? []}
+        />
 
         {detailRows.length > 0 && (
           <section className="detail-section">
@@ -259,10 +271,10 @@ export function MovieDetailView({
         <MovieIntelligencePanel movieId={movie.id} />
 
         {recs.length > 0 && (
-          <MovieRow title="You might also like" movies={recs} href="/movies" />
+          <MovieRow title="You might also like" movies={recs} href="/movies" railId="movie-recs" />
         )}
         {sim.length > 0 && (
-          <MovieRow title="Similar movies" movies={sim} />
+          <MovieRow title="Similar movies" movies={sim} railId="movie-similar" />
         )}
 
         <section className="detail-section">

@@ -3,12 +3,14 @@ import "server-only";
 import { getMovie } from "@/lib/tmdb/movies";
 import { getEnabledProviders } from "@/lib/providers.config";
 import { einthusanProvider } from "./providers/einthusan";
+import { hostedVodProvider } from "./providers/hosted-vod";
 import { ownedMediaProvider } from "./providers/owned-media";
 import { tmdbExternalProvider } from "./providers/tmdb-external";
 import { trailerProvider } from "./providers/trailer";
 import type { ExternalOffer, PlaybackProvider, PlaybackResolution, PlaybackSource } from "./types";
 
 const providers: PlaybackProvider[] = [
+  hostedVodProvider,
   ownedMediaProvider,
   einthusanProvider,
   trailerProvider,

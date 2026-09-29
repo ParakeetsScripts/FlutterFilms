@@ -181,8 +181,17 @@ export type DiscoverQuery = {
   runtimeLte?: number;
   ratingGte?: number;
   ratingLte?: number;
+  voteCountGte?: number;
+  voteCountLte?: number;
+  /** TMDB `language` — localized titles/overviews */
+  uiLanguage?: string;
+  /** TMDB `with_original_language` — content filter */
+  originalLanguage?: string;
+  /** @deprecated use originalLanguage */
   language?: string;
   region?: string;
+  /** TMDB `with_origin_country` — production country filter */
+  originCountry?: string;
   sort?: "popularity" | "rating" | "release_date" | "title";
   sortDirection?: "asc" | "desc";
 };

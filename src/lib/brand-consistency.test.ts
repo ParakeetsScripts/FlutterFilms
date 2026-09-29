@@ -6,13 +6,16 @@ import manifest from "../app/manifest";
 
 const FORBIDDEN_PUBLIC = [
   "Flutter Films",
-  "FlutterFilms by Ritvik M",
-  "FlutterFilms by Ritvik",
-  "by Ritvik M",
   "VitaMovies",
   "Vitamovies",
   "flutterfilms.app",
 ];
+
+const BRAND_CREDIT_FILES = new Set([
+  join(process.cwd(), "src/lib/brand.ts"),
+  join(process.cwd(), "src/components/layout/Logo.tsx"),
+  join(process.cwd(), "src/components/layout/AppShell.tsx"),
+]);
 
 const SCAN_DIRS = ["src/app", "src/components"];
 
@@ -50,6 +53,11 @@ describe("public brand consistency", () => {
       for (const forbidden of FORBIDDEN_PUBLIC) {
         if (text.includes(forbidden)) {
           violations.push(`${file}: ${forbidden}`);
+        }
+      }
+      if (!BRAND_CREDIT_FILES.has(file)) {
+        for (const credit of ["FlutterFilms by Ritvik M", "FlutterFilms by Ritvik", "by Ritvik M"]) {
+          if (text.includes(credit)) violations.push(`${file}: ${credit}`);
         }
       }
     }

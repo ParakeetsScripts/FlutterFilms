@@ -1,83 +1,75 @@
-import { MovieCard } from "@/components/movie/MovieCard";
-import { MovieGrid } from "@/components/movie/MovieGrid";
+import { DiscoverCatalog, type DiscoverCatalogProps } from "@/components/discover/DiscoverCatalog";
 import { PageError } from "@/components/ui/States";
-import { FilterDrawer } from "@/components/discover/FilterDrawer";
+import { getServerCatalogPreferences } from "@/lib/catalog/server";
+import { catalogQueryKey } from "@/lib/discover/catalog-view";
+import { hasActiveMovieFilters } from "@/lib/discover/filters";
+import { buildMoviesDiscoverQuery, type MoviesPageParams } from "@/lib/discover/query";
+import { findCountry, LANGUAGES } from "@/lib/regions";
 import { discoverMovies } from "@/lib/tmdb/discover";
 import { getTrendingMovies } from "@/lib/tmdb/movies";
-import { parseGenreId, parseLanguage, parsePage, parseRating, parseSort, parseYear } from "@/lib/validation";
 import { TmdbUnavailableError } from "@/lib/tmdb/client";
-import { Suspense } from "react";
+import type { Metadata } from "next";
 
-export const revalidate = 600;
+export const dynamic = "force-dynamic";
 
-export default async function MoviesPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+export const metadata: Metadata = {
+  title: "Discover",
+  description: "Browse TMDB's global movie catalog as a spatial archive — filter, sort, inspect, and open any film.",
+};
+
+const SORT_DESCRIPTIONS: Record<string, string> = {
+  popularity: "TMDB popularity",
+  rating: "TMDB rating",
+  release_date: "release date",
+  title: "title",
+};
+
+async function loadCatalog(params: MoviesPageParams): Promise<DiscoverCatalogProps> {
+  const catalog = await getServerCatalogPreferences();
+  const query = buildMoviesDiscoverQuery(params, catalog);
+  const [trending, discovered] = await Promise.all([
+    getTrendingMovies("day", 1, { language: catalog.uiLanguage, region: catalog.region }).catch(() => ({ results: [] })),
+    discoverMovies(query),
+  ]);
+  const languageLabel = query.originalLanguage
+    ? (LANGUAGES.find((l) => l.code === query.originalLanguage)?.name ?? query.originalLanguage)
+    : null;
+  const countryLabel = query.originCountry ? findCountry(query.originCountry)?.name : null;
+
+  return {
+    queryKey: catalogQueryKey(params),
+    searchParams: Object.fromEntries(
+      Object.entries(params).filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1] !== ""),
+    ),
+    title: languageLabel ? `${languageLabel} cinema` : "Discover",
+    sortLabel: SORT_DESCRIPTIONS[query.sort ?? "popularity"] ?? "TMDB popularity",
+    filtersActive: hasActiveMovieFilters(params),
+    contextNotes: [
+      countryLabel ? `Production country: ${countryLabel}` : null,
+      languageLabel ? `Original language: ${languageLabel}` : null,
+    ].filter((note): note is string => Boolean(note)),
+    initial: {
+      page: query.page,
+      totalPages: discovered.totalPages,
+      totalResults: discovered.totalResults,
+      results: discovered.results,
+    },
+    trending: trending.results,
+  };
+}
+
+export default async function MoviesPage({ searchParams }: { searchParams: Promise<MoviesPageParams> }) {
   const params = await searchParams;
-  const value = (key: string) => (typeof params[key] === "string" ? params[key] : undefined);
-
+  let props: DiscoverCatalogProps | null = null;
+  let tmdbDown = false;
   try {
-    const query = {
-      page: parsePage(value("page")),
-      genre: parseGenreId(value("genre")),
-      year: parseYear(value("year")),
-      yearGte: parseYear(value("yearGte")),
-      yearLte: parseYear(value("yearLte")),
-      ratingGte: parseRating(value("ratingGte")),
-      language: parseLanguage(value("language")),
-      sort: parseSort(value("sort")),
-    };
-    const [trending, discovered] = await Promise.all([
-      getTrendingMovies("day").catch(() => ({ results: [] })),
-      discoverMovies(query),
-    ]);
-
-    return (
-      <div className="page-container page-section">
-        <header className="page-header">
-          <p className="eyebrow">Discover</p>
-          <h1 className="page-header__title">Movies</h1>
-          <p className="page-header__subtitle">
-            Browse the catalog with premium filters. Popularity reflects TMDB audience interest — not editorial “best of” lists.
-          </p>
-        </header>
-
-        <Suspense>
-          <FilterDrawer />
-        </Suspense>
-
-        <section className="mt-12">
-          <div className="row-section__header">
-            <h2 className="row-section__title">Trending Now</h2>
-          </div>
-          <div className="row-scroller-wrap">
-            <div className="row-scroller">
-              {trending.results.slice(0, 12).map((movie) => (
-                <MovieCard key={movie.id} movie={movie} variant="spotlight" />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-14">
-          <div className="row-section__header mb-6">
-            <h2 className="row-section__title">All results</h2>
-            <p className="text-sm text-[var(--text-muted)]">
-              {query.sort === "rating" ? "Sorted by TMDB rating" : query.sort === "release_date" ? "Sorted by release date" : query.sort === "title" ? "Sorted by title" : "Sorted by TMDB popularity"}
-            </p>
-          </div>
-          <MovieGrid movies={discovered.results} />
-          <div className="mt-10 flex justify-center gap-4 text-sm">
-            {query.page > 1 && <a href={`?page=${query.page - 1}`} className="btn btn-ghost">Previous</a>}
-            {query.page < discovered.totalPages && <a href={`?page=${query.page + 1}`} className="btn btn-secondary">Load more</a>}
-          </div>
-        </section>
-      </div>
-    );
+    props = await loadCatalog(params);
   } catch (error) {
-    if (error instanceof TmdbUnavailableError) return <PageError />;
-    return <PageError message="Those filters could not be applied." />;
+    tmdbDown = error instanceof TmdbUnavailableError;
   }
+
+  if (!props) {
+    return tmdbDown ? <PageError /> : <PageError message="Those filters could not be applied." />;
+  }
+  return <DiscoverCatalog key={`${props.queryKey}|${props.initial.page}`} {...props} />;
 }

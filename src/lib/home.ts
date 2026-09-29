@@ -1,3 +1,5 @@
+import type { CatalogPreferences } from "@/lib/catalog/preferences";
+import { defaultCatalogPreferences } from "@/lib/catalog/preferences";
 import { getLatestSections } from "@/lib/sync/catalog";
 import { discoverMovies } from "@/lib/tmdb/discover";
 import {
@@ -9,9 +11,10 @@ import {
 } from "@/lib/tmdb/movies";
 import type { MovieSummary } from "@/lib/tmdb/types";
 import { buildE2EHomeData } from "@/lib/e2e/home-fixture";
+import { lowerNoiseQuery, uniqueById } from "@/lib/home/chapters";
 import { FEATURED_GENRES } from "@/lib/regions";
 
-const ROW_LIMIT = 14;
+const ROW_LIMIT = 24;
 
 export type HomeSection = {
   id: string;
@@ -48,9 +51,9 @@ function sortByReleaseDate(movies: MovieSummary[]): MovieSummary[] {
   });
 }
 
-export async function loadHomeData(language?: string): Promise<HomeData> {
+export async function loadHomeData(catalog?: CatalogPreferences): Promise<HomeData> {
   try {
-    return await loadHomeDataFromSources(language);
+    return await loadHomeDataFromSources(catalog ?? defaultCatalogPreferences);
   } catch (error) {
     if (process.env.PLAYWRIGHT === "1") {
       return buildE2EHomeData();
@@ -59,18 +62,34 @@ export async function loadHomeData(language?: string): Promise<HomeData> {
   }
 }
 
-async function loadHomeDataFromSources(language?: string): Promise<HomeData> {
-  const [trending, popular, nowPlaying, upcoming, topRated, latest, genreSpotlight] = await Promise.all([
-    settled(getTrendingMovies("day")),
-    settled(getPopularMovies()),
-    settled(getNowPlayingMovies()),
-    settled(getUpcomingMovies()),
-    settled(getTopRatedMovies()),
+async function loadHomeDataFromSources(catalog: CatalogPreferences): Promise<HomeData> {
+  const listOpts = { language: catalog.uiLanguage, region: catalog.region };
+  const lowerNoisePrefs = { uiLanguage: catalog.uiLanguage, region: catalog.region, originalLanguage: catalog.originalLanguage };
+  const now = new Date();
+  const [trendingA, trendingB, popular, nowPlaying, upcoming, topRated, latest, genreSpotlight, lowerNoiseA, lowerNoiseB, lowerNoiseC, lowerNoiseD] = await Promise.all([
+    settled(getTrendingMovies("day", 1, listOpts)),
+    settled(getTrendingMovies("day", 2, listOpts)),
+    settled(getPopularMovies(1, listOpts)),
+    settled(getNowPlayingMovies(1, catalog.region, catalog.uiLanguage)),
+    settled(getUpcomingMovies(1, catalog.region, catalog.uiLanguage)),
+    settled(getTopRatedMovies(1, listOpts)),
     settled(getLatestSections()),
-    settled(discoverMovies({ genre: FEATURED_GENRES[0].id, sort: "popularity", language })),
+    settled(
+      discoverMovies({
+        genre: FEATURED_GENRES[0].id,
+        sort: "popularity",
+        uiLanguage: catalog.uiLanguage,
+        originalLanguage: catalog.originalLanguage,
+        region: catalog.region,
+      }),
+    ),
+    settled(discoverMovies(lowerNoiseQuery(1, now, lowerNoisePrefs))),
+    settled(discoverMovies(lowerNoiseQuery(2, now, lowerNoisePrefs))),
+    settled(discoverMovies(lowerNoiseQuery(3, now, lowerNoisePrefs))),
+    settled(discoverMovies(lowerNoiseQuery(4, now, lowerNoisePrefs))),
   ]);
 
-  const trendingMovies = trimRow(trending?.results ?? []);
+  const trendingMovies = trimRow(uniqueById([...(trendingA?.results ?? []), ...(trendingB?.results ?? [])]));
   const featured = trendingMovies[0] ?? popular?.results?.[0];
   if (!featured) {
     throw new Error("No movies available");
@@ -122,6 +141,18 @@ async function loadHomeDataFromSources(language?: string): Promise<HomeData> {
       empty: "Genre picks are temporarily unavailable.",
     },
     {
+      id: "lower-noise",
+      title: "Hidden gems",
+      movies: uniqueById([
+        ...(lowerNoiseA?.results ?? []),
+        ...(lowerNoiseB?.results ?? []),
+        ...(lowerNoiseC?.results ?? []),
+        ...(lowerNoiseD?.results ?? []),
+      ]),
+      href: "/movies?sort=rating",
+      empty: "No lower-noise titles are available right now.",
+    },
+    {
       id: "recently-updated",
       title: "Recently Updated",
       movies: trimRow(latest?.updated ?? []),
@@ -145,8 +176,8 @@ async function loadHomeDataFromSources(language?: string): Promise<HomeData> {
 }
 
 /** @deprecated Use loadHomeData */
-export async function loadHomeRows(language?: string) {
-  const data = await loadHomeData(language);
+export async function loadHomeRows(catalog?: CatalogPreferences) {
+  const data = await loadHomeData(catalog);
   return data.sections.map((section) => ({
     title: section.title,
     movies: section.movies,

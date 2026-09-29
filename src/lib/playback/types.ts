@@ -12,6 +12,7 @@ export type PlaybackSource = {
   expiresAt?: string;
   requiresAuth?: boolean;
   drmRequired?: boolean;
+  isLive?: boolean;
 };
 
 export type ExternalOffer = {

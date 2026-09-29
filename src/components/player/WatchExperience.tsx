@@ -78,6 +78,8 @@ export function WatchExperience({
             source={source}
             poster={poster ?? undefined}
             movieId={movie.id}
+            movieTitle={movie.title}
+            mode={playback.status === "TRAILER_ONLY" ? "trailer" : "watch"}
             trackProgress={playback.status === "PLAYABLE"}
           />
           <div className="watch-experience__player-meta">

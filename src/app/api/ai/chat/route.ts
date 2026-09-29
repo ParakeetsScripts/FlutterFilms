@@ -85,6 +85,7 @@ export async function POST(request: Request) {
       history?: number[];
       streamFormat?: "text" | "ndjson";
       sessionContext?: import("@/lib/ai/agent/session-context").AgentSessionContext;
+      movieIds?: number[];
     };
     const messages = body.messages ?? [];
     if (!messages.length) {
@@ -137,6 +138,7 @@ export async function POST(request: Request) {
       favorites,
       history,
       watchlist,
+      movieIds: body.movieIds,
       userId: session?.id,
     });
 
@@ -199,7 +201,11 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "AI request failed.";
+    const { sanitizePublicErrorMessage } = await import("@/lib/errors/public-message");
+    const message = sanitizePublicErrorMessage(
+      error instanceof Error ? error.message : "AI request failed.",
+      "generic",
+    );
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

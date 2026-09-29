@@ -6,6 +6,7 @@ import { track } from "@/lib/analytics/track";
 import { onboardingStore } from "@/lib/onboarding/store";
 import {
   MAX_FAVORITE_MOVIES,
+  MIN_FAVORITE_GENRES,
   MIN_FAVORITE_MOVIES,
   type MovieTasteItem,
   type OnboardingState,
@@ -166,46 +167,64 @@ export function useOnboarding() {
     [update],
   );
 
-  const complete = useCallback(async () => {
-    setSaving(true);
-    setSaveError(null);
-    try {
-      const response = await fetch("/api/onboarding/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state }),
-      });
-      const data = await response.json();
-      if (!response.ok || data.error) {
-        setSaveError(data.error ?? "Could not save your taste profile.");
-        track("onboarding_save_failed");
-        return null;
-      }
-      const movieIds = state.favoriteMovies.map((m) => m.tmdbId);
-      setFavoriteIds(movieIds);
-      updateSettings({
-        favoriteGenres: state.favoriteGenres,
-        preferredLanguages: state.preferredLanguages,
-        onboardingCompleted: true,
-        onboardingVersion: state.version,
-        discoveryPreferences: state.discoveryPreferences,
-      });
-      update({ completed: true, completedAt: new Date().toISOString() });
-      track("onboarding_completed", {
+  const finishLocally = useCallback(() => {
+    const movieIds = state.favoriteMovies.map((m) => m.tmdbId);
+    setFavoriteIds(movieIds);
+    updateSettings({
+      favoriteGenres: state.favoriteGenres,
+      preferredLanguages: state.preferredLanguages,
+      onboardingCompleted: true,
+      onboardingVersion: state.version,
+      discoveryPreferences: state.discoveryPreferences,
+    });
+    update({ completed: true, completedAt: new Date().toISOString() });
+    return {
+      summary: {
         movies: state.favoriteMovies.length,
         genres: state.favoriteGenres.length,
         people: state.favoritePeople.length,
-        signedIn: Boolean(user),
-      });
-      return data;
-    } catch {
-      setSaveError("Network error — your selections are saved locally. Try again.");
-      track("onboarding_save_failed");
-      return null;
-    } finally {
+        languages: state.preferredLanguages.length,
+      },
+    };
+  }, [state, update, updateSettings, setFavoriteIds]);
+
+  const complete = useCallback(async () => {
+    setSaving(true);
+    setSaveError(null);
+
+    if (state.favoriteMovies.length < MIN_FAVORITE_MOVIES) {
+      setSaveError(`Select at least ${MIN_FAVORITE_MOVIES} movies to continue.`);
       setSaving(false);
+      return null;
     }
-  }, [state, update, updateSettings, setFavoriteIds, user]);
+    if (state.favoriteGenres.length < MIN_FAVORITE_GENRES) {
+      setSaveError(`Select at least ${MIN_FAVORITE_GENRES} genre.`);
+      setSaving(false);
+      return null;
+    }
+    if (!state.preferredLanguages.length) {
+      setSaveError("Select at least one language.");
+      setSaving(false);
+      return null;
+    }
+
+    const result = finishLocally();
+
+    void fetch("/api/onboarding/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state }),
+    }).catch(() => {});
+
+    track("onboarding_completed", {
+      movies: state.favoriteMovies.length,
+      genres: state.favoriteGenres.length,
+      people: state.favoritePeople.length,
+      signedIn: Boolean(user),
+    });
+    setSaving(false);
+    return result;
+  }, [state, user, finishLocally]);
 
   return {
     state,

@@ -1,0 +1,37 @@
+/* ── Shared poster flight between routes (Z5) ── */
+
+.shared-flight {
+  position: fixed;
+  z-index: var(--layer-transition);
+  margin: 0;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  transform-origin: 0 0;
+  pointer-events: none;
+  box-shadow: var(--print-shadow);
+  will-change: transform;
+}
+
+.shared-veil {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--layer-transition) - 1);
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, rgba(6, 7, 10, 0.5), rgba(6, 7, 10, 0.86));
+  opacity: 0;
+  transition: opacity var(--motion-ui) ease;
+}
+
+.shared-veil.is-visible {
+  opacity: 1;
+}
+
+/* Destination posters stay hidden until the flight lands on them. */
+html.is-shared-transition [data-shared-poster] {
+  opacity: 0;
+}
+
+[data-shared-arrival] .detail-hero-v2__poster,
+[data-shared-arrival].detail-hero-v2__poster-frame {
+  animation: none !important;
+}

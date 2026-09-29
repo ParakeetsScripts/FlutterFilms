@@ -41,8 +41,9 @@ export async function POST(
     });
     return NextResponse.json(result);
   } catch (error) {
+    const { sanitizePublicErrorMessage } = await import("@/lib/errors/public-message");
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Feature run failed." },
+      { error: sanitizePublicErrorMessage(error instanceof Error ? error.message : "Feature run failed.", "generic") },
       { status: 500 },
     );
   }

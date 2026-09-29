@@ -1,4 +1,6 @@
 import { AuthError } from "@/lib/auth/errors";
+import { DatabaseUnavailableError } from "@/lib/db/errors";
+import { isInfrastructureError, sanitizePublicErrorMessage } from "@/lib/errors/public-message";
 import { errorCategoryFromError, reportProductionError } from "@/lib/errors/report";
 import { TmdbConfigError, TmdbUnavailableError } from "@/lib/tmdb/client";
 import { ValidationError } from "@/lib/validation";
@@ -49,15 +51,36 @@ export async function handleApi<T>(fn: () => Promise<T>, meta?: { route?: string
     if (error instanceof ValidationError) {
       return NextResponse.json({ error: error.message, requestId }, { status: 400 });
     }
-    if (error instanceof Error && error.message) {
-      return NextResponse.json({ error: error.message, requestId }, { status: 400 });
+    if (error instanceof DatabaseUnavailableError) {
+      const context = meta?.route?.includes("onboarding") ? "save" : "generic";
+      return NextResponse.json(
+        { error: sanitizePublicErrorMessage(error.message, context), requestId },
+        { status: 503 },
+      );
     }
     if (error instanceof TmdbConfigError) {
-      return NextResponse.json({ error: error.message, requestId }, { status: 503 });
+      return NextResponse.json(
+        { error: sanitizePublicErrorMessage(error.message, "movieData"), requestId },
+        { status: 503 },
+      );
     }
     if (error instanceof TmdbUnavailableError) {
-      return NextResponse.json({ error: "Movie data is temporarily unavailable.", requestId }, { status: 503 });
+      return NextResponse.json(
+        { error: sanitizePublicErrorMessage(error.message, "movieData"), requestId },
+        { status: 503 },
+      );
     }
-    return NextResponse.json({ error: "Movie data is temporarily unavailable.", requestId }, { status: 503 });
+    if (error instanceof Error && error.message) {
+      const context = meta?.route?.includes("onboarding") ? "save" : "generic";
+      const status = isInfrastructureError(error.message) ? 503 : 400;
+      return NextResponse.json(
+        { error: sanitizePublicErrorMessage(error.message, context), requestId },
+        { status },
+      );
+    }
+    return NextResponse.json(
+      { error: sanitizePublicErrorMessage(null, "generic"), requestId },
+      { status: 503 },
+    );
   }
 }

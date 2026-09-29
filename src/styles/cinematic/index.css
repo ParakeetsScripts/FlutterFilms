@@ -1,0 +1,15 @@
+/* Cinematic Spatial System. Imported after globals.css so equal-specificity rules win. */
+@import "./tokens.css";
+@import "./ambient.css";
+@import "./cards.css";
+@import "./transition.css";
+@import "./hero.css";
+@import "./chapters.css";
+@import "./discover.css";
+@import "./my-cinema.css";
+@import "./shell.css";
+@import "./command.css";
+@import "./detail.css";
+@import "./intelligence.css";
+@import "./watch.css";
+@import "./modes.css";

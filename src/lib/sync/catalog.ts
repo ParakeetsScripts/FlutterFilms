@@ -1,6 +1,7 @@
 import "server-only";
 
 import { fetchTmdbMovieRaw } from "@/lib/tmdb/movies";
+import { resolveMovieVideos } from "@/lib/tmdb/videos.server";
 import type { Movie, MovieSummary, PagedResult } from "@/lib/tmdb/types";
 import { rowToCatalogMovie, summaryFromCatalog } from "./merge";
 import { getMovieRow, listRecentlyAdded, listRecentlyUpdated, searchIndex } from "./repository";
@@ -14,43 +15,107 @@ function isStale(lastSyncedAt: string | null): boolean {
   return Date.now() - new Date(lastSyncedAt).getTime() > STALE_MS;
 }
 
+function liveToCatalogMovie(live: Movie): CatalogMovie {
+  return {
+    ...live,
+    keywords: live.keywords ?? [],
+    releases: live.releases ?? { certification: null, byRegion: [] },
+    imdbRating: null,
+    imdbVoteCount: null,
+    tmdbRating: live.voteAverage,
+    tmdbVoteCount: live.voteCount,
+    lastSyncedAt: live.retrievedAt,
+    metadataUpdatedAt: live.retrievedAt,
+    ratingsUpdatedAt: live.retrievedAt,
+    metadataCompleteness: null,
+    sourceRecords: [],
+  };
+}
+
+async function enrichWithStoredRatings(movie: CatalogMovie): Promise<CatalogMovie> {
+  try {
+    const row = await getMovieRow(movie.id);
+    if (!row) return movie;
+    return {
+      ...movie,
+      imdbId: row.imdb_id ?? movie.imdbId,
+      imdbRating: row.imdb_rating ?? movie.imdbRating,
+      imdbVoteCount: row.imdb_vote_count ?? movie.imdbVoteCount,
+      ratingsUpdatedAt: row.ratings_updated_at ?? movie.ratingsUpdatedAt,
+    };
+  } catch {
+    return movie;
+  }
+}
+
+async function fetchLiveCatalogMovie(
+  tmdbId: number,
+  options: { language?: string; region?: string } = {},
+): Promise<CatalogMovie | null> {
+  try {
+    const live = await fetchTmdbMovieRaw(tmdbId, options);
+    if (!live) return null;
+    return enrichWithStoredRatings(liveToCatalogMovie(live));
+  } catch {
+    return null;
+  }
+}
+
 export async function getCatalogMovie(
   tmdbId: number,
   options: { language?: string; region?: string; forceRefresh?: boolean } = {},
 ): Promise<CatalogMovie | null> {
-  let row = await getMovieRow(tmdbId);
-  if (!row || options.forceRefresh || isStale(row.last_synced_at)) {
-    await refreshMovieFromTmdb(tmdbId);
+  let row: Awaited<ReturnType<typeof getMovieRow>> = null;
+
+  try {
     row = await getMovieRow(tmdbId);
-  }
-  if (row) {
-    const catalog = rowToCatalogMovie(row);
-    if (options.region && catalog.watchProviders?.region !== options.region) {
-      const live = await fetchTmdbMovieRaw(tmdbId, options);
-      if (live) return { ...catalog, watchProviders: live.watchProviders, videos: live.videos, images: live.images };
+    if (!row || options.forceRefresh || isStale(row.last_synced_at)) {
+      await refreshMovieFromTmdb(tmdbId);
+      row = await getMovieRow(tmdbId);
     }
-    return catalog;
+  } catch {
+    row = null;
   }
-  const live = await fetchTmdbMovieRaw(tmdbId, options);
-  if (!live) return null;
-  await refreshMovieFromTmdb(tmdbId);
-  row = await getMovieRow(tmdbId);
-  return row
-    ? rowToCatalogMovie(row)
-    : {
-        ...live,
-        keywords: live.keywords ?? [],
-        releases: live.releases ?? { certification: null, byRegion: [] },
-        imdbRating: null,
-        imdbVoteCount: null,
-        tmdbRating: live.voteAverage,
-        tmdbVoteCount: live.voteCount,
-        lastSyncedAt: live.retrievedAt,
-        metadataUpdatedAt: live.retrievedAt,
-        ratingsUpdatedAt: live.retrievedAt,
-        metadataCompleteness: null,
-        sourceRecords: [],
-      };
+
+  if (row) {
+    try {
+      const catalog = rowToCatalogMovie(row);
+      const needsLiveMedia =
+        (options.region && catalog.watchProviders?.region !== options.region) || !catalog.videos?.length;
+      if (needsLiveMedia) {
+        const live = await fetchLiveCatalogMovie(tmdbId, options);
+        if (live) {
+          const videos = live.videos?.length
+            ? live.videos
+            : await resolveMovieVideos(tmdbId, catalog.videos, options.language);
+          return {
+            ...catalog,
+            watchProviders: live.watchProviders ?? catalog.watchProviders,
+            videos,
+            images: live.images?.posters?.length ? live.images : catalog.images,
+          };
+        }
+      }
+      if (!catalog.videos?.length) {
+        const videos = await resolveMovieVideos(tmdbId, catalog.videos, options.language);
+        if (videos.length) return { ...catalog, videos };
+      }
+      return catalog;
+    } catch {
+      // Corrupt row — fall through to live TMDB
+    }
+  }
+
+  const live = await fetchLiveCatalogMovie(tmdbId, options);
+  if (live) {
+    const videos = live.videos?.length
+      ? live.videos
+      : await resolveMovieVideos(tmdbId, live.videos, options.language);
+    void refreshMovieFromTmdb(tmdbId).catch(() => {});
+    return videos.length ? { ...live, videos } : live;
+  }
+
+  return null;
 }
 
 function rankSearchRow(
@@ -89,10 +154,24 @@ export async function searchCatalog(query: string, page = 1, pageSize = 40): Pro
 }
 
 export async function getLatestSections() {
-  const [updatedRows, addedRows] = await Promise.all([listRecentlyUpdated(18), listRecentlyAdded(18)]);
-  const updated = updatedRows.map((row) => summaryFromCatalog(rowToCatalogMovie(row)));
-  const added = addedRows.map((row) => summaryFromCatalog(rowToCatalogMovie(row)));
-  return { updated, added };
+  try {
+    const [updatedRows, addedRows] = await Promise.all([listRecentlyUpdated(18), listRecentlyAdded(18)]);
+    const updated = updatedRows.map((row) => summaryFromCatalog(rowToCatalogMovie(row)));
+    const added = addedRows.map((row) => summaryFromCatalog(rowToCatalogMovie(row)));
+    if (updated.length || added.length) return { updated, added };
+  } catch {
+    // Local dev without Postgres — fall back to live TMDB lists.
+  }
+
+  const { getNowPlayingMovies, getPopularMovies } = await import("@/lib/tmdb/movies");
+  const [popular, nowPlaying] = await Promise.all([
+    getPopularMovies(1).catch(() => ({ results: [] as MovieSummary[] })),
+    getNowPlayingMovies(1).catch(() => ({ results: [] as MovieSummary[] })),
+  ]);
+  return {
+    updated: popular.results.slice(0, 18),
+    added: nowPlaying.results.slice(0, 18),
+  };
 }
 
 export function catalogMovieToLegacy(movie: CatalogMovie): Movie {

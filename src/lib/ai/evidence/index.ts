@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { SpoilerLevel } from "../intelligence/briefing";
+import { filterMovieEvidenceForSpoiler } from "../spoiler-filter";
 import { formatMovieEvidenceBlock, getMoviesEvidence, resolveMovieEvidenceFromQuery } from "./movie";
 import { formatUserTasteBlock, getUserTasteEvidence } from "./user";
 import type { EvidencePacket } from "./types";
@@ -12,16 +14,20 @@ export { movieEvidenceFromCatalog } from "./types";
 export async function buildEvidencePacket(input: {
   query: string;
   movieIds?: number[];
+  spoilerLevel?: SpoilerLevel;
   userId?: string | null;
   favorites?: number[];
   history?: number[];
   watchlist?: number[];
 }): Promise<EvidencePacket> {
   const sourcesUsed = new Set<string>();
-  const movies =
+  const rawMovies =
     input.movieIds?.length
       ? await getMoviesEvidence(input.movieIds)
       : await resolveMovieEvidenceFromQuery(input.query);
+  const movies = input.spoilerLevel
+    ? filterMovieEvidenceForSpoiler(rawMovies, input.spoilerLevel)
+    : rawMovies;
 
   for (const m of movies) {
     for (const s of m.sources) {
@@ -38,7 +44,7 @@ export async function buildEvidencePacket(input: {
   if (userTaste) sourcesUsed.add("FlutterFilms taste profile");
 
   const blocks: string[] = [];
-  const movieBlock = formatMovieEvidenceBlock(movies);
+  const movieBlock = formatMovieEvidenceBlock(movies, input.spoilerLevel);
   if (movieBlock) {
     blocks.push(`VERIFIED MOVIE DATA (authoritative for facts — do not contradict):\n${movieBlock}`);
   }

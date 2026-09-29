@@ -1,5 +1,6 @@
 import { HomeView } from "@/components/home/HomeView";
 import { PageError } from "@/components/ui/States";
+import { getServerCatalogPreferences } from "@/lib/catalog/server";
 import { loadHomeData } from "@/lib/home";
 import { watchLabel } from "@/lib/playback/labels";
 import { resolvePlayback } from "@/lib/playback/resolver";
@@ -10,7 +11,8 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   try {
-    const data = await loadHomeData();
+    const catalog = await getServerCatalogPreferences();
+    const data = await loadHomeData(catalog);
     const playback = await resolvePlayback(data.featured.id).catch(() => null);
     const defaultPlayback = {
       label: playback ? watchLabel(playback.status) : "Where to watch",

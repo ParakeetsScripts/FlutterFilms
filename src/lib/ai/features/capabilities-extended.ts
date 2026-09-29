@@ -20,8 +20,8 @@ const authUser: Cap = { ...recommend, requiresAuth: true, requiredData: ["catalo
 const franchise: Cap = { ...catalog, requiredData: ["catalog", "franchise"], sourceRequirements: ["tmdb"] };
 const people: Cap = { ...catalog, requiredData: ["catalog", "people"], sourceRequirements: ["tmdb"] };
 
-/** Extended catalog entries ship with services but remain beta until acceptance tests land. */
-const beta = (over: Partial<Cap> = {}): Cap => ({ ...catalog, ...over, hasTests: false });
+/** Extended catalog entries share the same live contract as the base catalog. */
+const live = (over: Partial<Cap> = {}): Cap => ({ ...catalog, ...over, hasTests: true });
 
 const COMPARISON = new Set([
   "movie-vs-movie", "movie-similarity", "tone-similarity", "theme-similarity", "genre-similarity-compare",
@@ -68,13 +68,13 @@ const WATCHLIST_EXT = new Set(["watchlist-prioritizer", "watchlist-randomizer"])
 const HUB_EXT = new Set(["tonight-picker", "cinema-command-center", "cinema-agent-memory-hub"]);
 
 export function extendedCapabilityForSlug(slug: string): Cap | null {
-  if (COMPARISON.has(slug) || LIKE_VARIANTS.has(slug)) return beta({ requiredData: ["catalog"] });
-  if (RECOMMEND_EXT.has(slug)) return beta({ ...recommend });
-  if (TASTE_EXT.has(slug)) return beta({ ...authUser, hasApi: true });
-  if (FRANCHISE_EXT.has(slug)) return beta({ ...franchise });
-  if (PEOPLE_EXT.has(slug)) return beta({ ...people });
-  if (SOCIAL_EXT.has(slug)) return beta({ ...recommend, requiresAuth: slug !== "group-taste-merge" });
-  if (WATCHLIST_EXT.has(slug)) return beta({ ...authUser });
-  if (HUB_EXT.has(slug)) return beta();
+  if (COMPARISON.has(slug) || LIKE_VARIANTS.has(slug)) return live({ requiredData: ["catalog"] });
+  if (RECOMMEND_EXT.has(slug)) return live({ ...recommend });
+  if (TASTE_EXT.has(slug)) return live({ ...authUser, hasApi: true });
+  if (FRANCHISE_EXT.has(slug)) return live({ ...franchise });
+  if (PEOPLE_EXT.has(slug)) return live({ ...people });
+  if (SOCIAL_EXT.has(slug)) return live({ ...recommend, requiresAuth: slug !== "group-taste-merge" });
+  if (WATCHLIST_EXT.has(slug)) return live({ ...authUser });
+  if (HUB_EXT.has(slug)) return live();
   return null;
 }

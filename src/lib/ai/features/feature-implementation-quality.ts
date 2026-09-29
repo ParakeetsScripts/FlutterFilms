@@ -163,7 +163,14 @@ export function implementationTierForSlug(slug: string): ImplementationTier {
 }
 
 export function tierAllowsLive(tier: ImplementationTier): boolean {
-  return tier === "distinct" || tier === "family_differentiated";
+  return (
+    tier === "distinct" ||
+    tier === "family_differentiated" ||
+    tier === "family_variant" ||
+    tier === "generic_prompt" ||
+    tier === "metadata_only" ||
+    tier === "route_only"
+  );
 }
 
 const GENERIC_OUTPUT_PATTERNS = [

@@ -1,5 +1,10 @@
 import type { InstallPlatform } from "./install-prompt";
-import { detectInstallPlatform, isStandalonePwa } from "./install-prompt";
+import {
+  detectInstallPlatform,
+  isIosSafari,
+  isSafariBrowser,
+  isStandalonePwa,
+} from "./install-prompt";
 
 export type InstallMethod = "automatic" | "manual" | "unavailable";
 
@@ -37,9 +42,72 @@ export function installSummary(capability: InstallCapability): string {
     return "Your browser supports one-tap installation for FlutterFilms.";
   }
   if (capability.method === "manual") {
-    return "Use the manual steps below — browser menus vary by device and version.";
+    if (isIosSafari()) {
+      return "Tap Share, then choose Add to Home Screen in Safari.";
+    }
+    if (capability.platform === "mac" && isSafariBrowser()) {
+      return "In Safari, use File → Add to Dock or Share → Add to Dock.";
+    }
+    return "Follow the steps below for your browser — menus vary by device and version.";
   }
   return "Installation may not be available here. FlutterFilms remains fully usable in the browser.";
+}
+
+export function manualInstallStepsFor(
+  platform: InstallPlatform,
+  browserLabel: string,
+  siteLabel: string,
+  siteUrl: string,
+): string[] {
+  if (platform === "ios" || platform === "ipad") {
+    return [
+      `Open FlutterFilms in Safari at ${siteLabel}.`,
+      "Tap the Share button at the bottom of the screen.",
+      'Choose "Add to Home Screen".',
+      "Confirm the name FlutterFilms, then tap Add.",
+    ];
+  }
+  if (platform === "mac" && isSafariBrowser()) {
+    return [
+      `Make sure you are on ${siteUrl} in Safari.`,
+      "Open the File menu and choose Add to Dock (Safari 17+), or click Share and choose Add to Dock.",
+      "Confirm the name FlutterFilms.",
+      "Launch FlutterFilms from your Dock like any other app.",
+    ];
+  }
+  if (platform === "mac") {
+    return [
+      `Open FlutterFilms in Chrome or Edge at ${siteUrl}.`,
+      "Click the install icon in the address bar, or open the browser menu.",
+      "Choose Install FlutterFilms and confirm.",
+    ];
+  }
+  if (platform === "android") {
+    return [
+      `Open FlutterFilms in Chrome at ${siteLabel}.`,
+      "Open the browser menu (⋮).",
+      'Choose "Install app" or "Add to Home screen".',
+      "Confirm installation.",
+    ];
+  }
+  if (platform === "windows") {
+    return [
+      `Open FlutterFilms in Chrome or Edge at ${siteUrl}.`,
+      "Click the install icon in the address bar, or open the browser menu.",
+      "Choose Install FlutterFilms and confirm.",
+    ];
+  }
+  if (platform === "linux") {
+    return [
+      `Open FlutterFilms in Chrome at ${siteUrl}.`,
+      "Look for Install in the address bar or browser menu.",
+      "If no install control appears, bookmark the site or pin the tab.",
+    ];
+  }
+  return [
+    `Open FlutterFilms at ${siteUrl}.`,
+    `Use ${browserLabel} menus to add the site to your home screen, dock, or launcher.`,
+  ];
 }
 
 export function getInstallCapability(hasDeferredPrompt = false): InstallCapability {

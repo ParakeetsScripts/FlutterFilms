@@ -84,6 +84,9 @@ export default function SettingsPage() {
               <option key={language.code} value={language.code}>{language.name}</option>
             ))}
           </select>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            Filters Home and Movies to titles originally in this language. English shows the full catalog; Tamil, Hindi, Korean, and others show films from that language.
+          </p>
         </label>
 
         <section>

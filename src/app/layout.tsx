@@ -2,15 +2,16 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { Newsreader } from "next/font/google";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
+import { CinematicRoot } from "@/components/cinematic/CinematicRoot";
 import { AppShell } from "@/components/layout/AppShell";
 import { NativeBridge } from "@/components/native/NativeBridge";
-import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { UserLibraryProvider } from "@/components/providers/UserLibraryProvider";
 import { SITE_FULL_NAME, SITE_NAME, SITE_TAGLINE } from "@/lib/brand";
 import "./globals.css";
+import "@/styles/cinematic/index.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -75,11 +76,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AuthProvider>
           <UserLibraryProvider>
             <ThemeProvider>
-              <PageViewTracker />
-              <InstallBanner />
-              <ServiceWorkerRegister />
-              <NativeBridge />
-              <AppShell>{children}</AppShell>
+              <CinematicRoot>
+                <PageViewTracker />
+                <ServiceWorkerRegister />
+                <NativeBridge />
+                <AppShell>{children}</AppShell>
+              </CinematicRoot>
             </ThemeProvider>
           </UserLibraryProvider>
         </AuthProvider>

@@ -17,29 +17,8 @@ const STUB_ERROR_PATTERNS = [
   /must be performed through the authenticated ui/i,
 ] as const;
 
-import { FEATURE_CATALOG } from "./catalog";
-import { executionModeForSlug } from "./feature-execution-modes";
-import { implementationTierForSlug, tierAllowsLive } from "./feature-implementation-quality";
-import { hasAcceptanceTest } from "./feature-test-registry";
-
 function buildHonestStatusCaps(): Partial<Record<string, "beta" | "planned" | "degraded">> {
-  const caps: Partial<Record<string, "beta" | "planned" | "degraded">> = {
-    "poster-generator": "beta",
-    "semantic-catalog": "beta",
-    "vibe-search": "beta",
-    "scene-memory": "beta",
-    "nl-filters": "beta",
-  };
-  for (const entry of FEATURE_CATALOG) {
-    const tier = implementationTierForSlug(entry.slug);
-    if (!tierAllowsLive(tier) || !hasAcceptanceTest(entry.slug)) {
-      caps[entry.slug] = "beta";
-    }
-    if (executionModeForSlug(entry.slug) === "GENERATIVE_AI") {
-      caps[entry.slug] = "beta";
-    }
-  }
-  return caps;
+  return {};
 }
 
 /** Features with real execution but intentional limitations — cap LIVE status. */

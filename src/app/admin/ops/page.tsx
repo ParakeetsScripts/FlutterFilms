@@ -36,6 +36,11 @@ export default async function AdminOpsPage() {
         <p className="eyebrow">Operations</p>
         <h1 className="page-header__title">Database & AI Ops</h1>
         <p className="page-header__subtitle">Health, sync status, model connectivity, cache, and generation jobs.</p>
+        <p className="mt-3 text-sm">
+          <a href="/admin/media" className="text-[var(--accent-soft)] underline-offset-2 hover:underline">
+            Open VOD media pipeline →
+          </a>
+        </p>
       </header>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">

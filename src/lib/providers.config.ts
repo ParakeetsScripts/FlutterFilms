@@ -49,6 +49,27 @@ export const providerConfigs: ProviderConfig[] = [
     notes: "YouTube keys supplied by TMDB video metadata.",
   },
   {
+    id: "flutterfilms-live",
+    displayName: "FlutterFilms Live (IVS)",
+    authType: "none",
+    enabled: true,
+    regions: ["*"],
+    legalStatus: "requires_authorization",
+    lastVerified: "2026-09-27",
+    notes: "RTMP ingest via Amazon IVS with public HLS playback URLs.",
+  },
+  {
+    id: "flutterfilms-vod",
+    displayName: "FlutterFilms Authorized VOD",
+    authType: "bearer",
+    enabled: true,
+    regions: ["*"],
+    legalStatus: "requires_authorization",
+    lastVerified: "2026-09-27",
+    notes:
+      "Licensed or admin-uploaded titles transcoded to HLS and delivered through short-lived signed stream URLs.",
+  },
+  {
     id: "local-media",
     displayName: "User-owned media",
     authType: "local",

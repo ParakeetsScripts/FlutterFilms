@@ -1,0 +1,1020 @@
+/* ═══ Discover — the spatial catalog ═══
+   Catalog query lives in the URL; everything here is presentation (view, focus, camera). */
+
+.catalog {
+  overflow-x: clip;
+}
+
+/* ── Orientation: the entrance to the archive ── */
+.catalog-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: end;
+  min-height: clamp(440px, 70vh, 760px);
+  padding: clamp(40px, 8vh, 96px) 0 clamp(32px, 6vh, 64px);
+  overflow: clip;
+}
+
+.catalog-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 60% at 28% 72%, color-mix(in srgb, var(--bg-0) 72%, transparent), transparent 72%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-0) 70%, transparent) 0%, transparent 32%, transparent 58%, var(--bg-0) 100%);
+}
+
+/* A floor of real catalog posters receding toward a high horizon. */
+.catalog-hero__field {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  perspective: 900px;
+  perspective-origin: 50% 18%;
+  mask-image: linear-gradient(180deg, transparent 8%, #000 42%, #000 88%, transparent 100%);
+}
+
+.catalog-hero__plane {
+  position: absolute;
+  left: 50%;
+  bottom: -6%;
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  gap: clamp(10px, 1.2vw, 18px);
+  width: 230%;
+  transform-origin: 50% 100%;
+  transform: translate3d(-50%, 0, 0) rotateX(66deg);
+}
+
+html[data-scroll-scenes="on"] .catalog-hero__plane {
+  transform: translate3d(-50%, calc(var(--scene-exit) * 12vh), 0) rotateX(calc(66deg - var(--scene-exit) * 8deg * var(--depth-scale)));
+}
+
+.catalog-hero__print {
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 6px;
+  opacity: 0.42;
+  box-shadow: var(--print-shadow);
+  animation: print-in 1.2s var(--ease-cinematic) backwards;
+  animation-delay: calc(var(--i) * 28ms);
+}
+
+.catalog-hero__print img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.catalog-hero__count {
+  position: absolute;
+  top: 10%;
+  right: max(var(--gutter), 4vw);
+  z-index: -1;
+  font-family: var(--font-display);
+  font-size: clamp(3.6rem, 11vw, 10rem);
+  font-weight: 300;
+  line-height: 0.8;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--text-primary) 24%, transparent);
+  user-select: none;
+}
+
+html[data-scroll-scenes="on"] .catalog-hero__count {
+  transform: translate3d(0, calc(var(--scene-exit) * -12vh), 0);
+}
+
+.catalog-hero__copy {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.catalog-hero__title {
+  margin-top: 14px;
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 7vw, 6rem);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  animation: console-rise 900ms var(--ease-cinematic) backwards;
+}
+
+.catalog-hero__orientation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 0;
+  max-width: 62rem;
+  margin-top: 18px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.catalog-hero__orientation > span:not(:last-child)::after {
+  content: "·";
+  margin: 0 12px;
+  color: var(--text-muted);
+}
+
+/* ── Filter console ── */
+.catalog-console .filter-drawer__panel {
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)), color-mix(in srgb, var(--bg-1) 80%, transparent);
+  box-shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ── Chapters ── */
+.catalog-chapter {
+  position: relative;
+  padding-block: clamp(44px, 8vh, 96px);
+}
+
+.catalog-chapter__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 22px;
+}
+
+.catalog-chapter__title {
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 3.4vw, 2.6rem);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+
+.catalog-chapter__note {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+html[data-scroll-scenes="on"] .catalog-chapter__head {
+  opacity: calc(0.3 + var(--scene-enter) * 0.7);
+  transform: translate3d(0, calc((1 - var(--scene-enter)) * 30px), 0);
+}
+
+/* ── Sticky control bar ── */
+.catalog-controls {
+  position: sticky;
+  top: calc(var(--nav-height-scrolled) + 8px);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 28px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--bg-1) 80%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 40px -26px rgba(0, 0, 0, 0.85);
+}
+
+.catalog-controls__count {
+  flex: 1;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.catalog-controls__pages {
+  color: var(--text-muted);
+}
+
+.view-switcher {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
+.view-switcher__option {
+  min-height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.view-switcher__option:hover {
+  color: var(--text-primary);
+}
+
+.view-switcher__option.is-active {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
+/* ── Layout with inspector ── */
+.catalog-layout {
+  display: grid;
+  gap: 32px;
+}
+
+.catalog-focus {
+  display: none;
+}
+
+@media (min-width: 1180px) {
+  .catalog-layout--inspector {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+  }
+
+  .catalog-focus {
+    position: sticky;
+    top: calc(var(--nav-height-scrolled) + 84px);
+    display: grid;
+    gap: 12px;
+    padding: 18px;
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+    background:
+      radial-gradient(ellipse at 50% 0%, rgb(var(--scene-rgb, 91 159 212) / 0.16), transparent 60%),
+      color-mix(in srgb, var(--bg-1) 84%, transparent);
+    box-shadow: 0 30px 60px -40px rgba(0, 0, 0, 0.9);
+  }
+}
+
+.catalog-focus__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.catalog-focus__close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.catalog-focus__poster-link {
+  display: block;
+  border-radius: 12px;
+}
+
+.catalog-focus__poster {
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: var(--print-shadow), var(--print-rim);
+}
+
+.catalog-focus__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: console-rise 420ms var(--ease-cinematic);
+}
+
+.catalog-focus__no-poster {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.catalog-focus__title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+
+.catalog-focus__facts,
+.catalog-focus__rating,
+.catalog-focus__hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.catalog-focus__overview {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.catalog-focus__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catalog-focus__related-list {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-focus__related-list a {
+  display: block;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--bg-2);
+}
+
+.catalog-focus__related-list img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Cinema view: rows lean with their distance from the viewport center ── */
+.catalog-rows {
+  display: grid;
+  gap: 40px;
+  perspective: 1600px;
+}
+
+.catalog-row {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: 28px;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+}
+
+html[data-scroll-scenes="on"] .catalog[data-view="cinema"] .catalog-row {
+  --lean: calc(var(--scene-progress) - 0.5);
+  --distance: max(var(--lean), calc(var(--lean) * -1));
+  transform:
+    rotateX(calc(var(--lean) * -18deg * var(--depth-scale)))
+    translateZ(calc(var(--distance) * -220px * var(--depth-scale)));
+  opacity: calc(1 - var(--distance) * 0.75);
+}
+
+.catalog-cell {
+  min-width: 0;
+  transition: transform var(--motion-ui) var(--ease-cinematic), opacity var(--motion-ui) ease;
+  animation: catalog-settle 720ms var(--ease-cinematic) backwards;
+  animation-delay: calc(var(--i) * 34ms);
+}
+
+.catalog-cell[data-fresh] {
+  animation-name: result-emerge;
+}
+
+@keyframes catalog-settle {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 26px, -140px) rotateX(8deg);
+  }
+}
+
+.catalog-cell .movie-card,
+.catalog-cell .movie-card--spotlight {
+  width: 100%;
+}
+
+html[data-pointer-effects="on"] .catalog-cell[data-focused] {
+  transform: translate3d(0, -6px, 40px);
+}
+
+.catalog-row:has(.catalog-cell[data-focused]) .catalog-cell:not([data-focused]),
+.catalog-grid:has(.catalog-cell[data-focused]) .catalog-cell:not([data-focused]) {
+  opacity: 0.74;
+}
+
+.catalog-grid {
+  gap: 24px;
+}
+
+/* Filter changes: the current archive recedes while the new results load. */
+.catalog-wall {
+  transition: opacity 380ms ease, transform 380ms var(--ease-cinematic), filter 380ms ease;
+}
+
+.catalog[data-reorganizing] .catalog-wall {
+  opacity: 0.3;
+  filter: saturate(0.5);
+  transform: perspective(1400px) translate3d(0, 16px, -80px);
+}
+
+/* ── Archive view ── */
+.catalog-archive {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-archive__row {
+  display: grid;
+  grid-template-columns: 44px 40px minmax(0, 1fr) 90px 120px 96px 104px auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 68px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 68px;
+  transition: background var(--motion-fast) ease;
+}
+
+.catalog-archive__row:hover,
+.catalog-archive__row:focus-within {
+  background: var(--surface-2);
+}
+
+.catalog-archive__rank {
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.catalog-archive__thumb {
+  display: block;
+  width: 40px;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.catalog-archive__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.catalog-archive__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.catalog-archive__title {
+  overflow: hidden;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalog-archive__title:hover {
+  color: var(--accent-soft);
+}
+
+.catalog-archive__genres,
+.catalog-archive__cell {
+  overflow: hidden;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalog-archive__rating {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.catalog-archive__save {
+  position: static;
+}
+
+@media (max-width: 900px) {
+  .catalog-archive__row {
+    grid-template-columns: 36px 40px minmax(0, 1fr) auto;
+  }
+
+  .catalog-archive__cell {
+    display: none;
+  }
+
+  .catalog-archive__rank {
+    font-size: 0.64rem;
+  }
+}
+
+/* ── Empty, load more, jump ── */
+.catalog-empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: clamp(48px, 10vh, 120px) 16px;
+  text-align: center;
+}
+
+.catalog-empty__title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.catalog-empty__body {
+  color: var(--text-secondary);
+}
+
+.catalog-more {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  margin-top: clamp(36px, 6vh, 64px);
+}
+
+.catalog-more__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.catalog-more__note {
+  max-width: 56ch;
+  font-size: 0.78rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.catalog-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
+.catalog-jump__label,
+.catalog-jump__max {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.catalog-jump__input {
+  width: 72px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Constellation = solar system of the loaded page ── */
+.solar-system {
+  --orbit-tilt: 62deg;
+  --planet-size: 86px;
+  display: grid;
+  gap: 16px;
+}
+
+.solar-system__note {
+  max-width: 64ch;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.solar-system__stage {
+  position: relative;
+  isolation: isolate;
+  min-height: clamp(580px, 82vh, 960px);
+  overflow: clip;
+  perspective: 1680px;
+  perspective-origin: 50% 38%;
+  background:
+    radial-gradient(ellipse 42% 28% at 50% 46%, rgba(255, 186, 92, 0.1), transparent 70%),
+    radial-gradient(ellipse 80% 70% at 50% 50%, #07060c, #030208);
+  border-radius: 20px;
+}
+
+.solar-system__sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.solar-system__star {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, calc(0.35 + var(--glow)));
+  box-shadow: 0 0 6px rgba(255, 255, 255, calc(var(--glow) * 0.8));
+}
+
+.solar-system__corona {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  z-index: 1;
+  width: min(340px, 48vw);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  pointer-events: none;
+  filter: blur(36px) saturate(1.35);
+  opacity: 0.55;
+}
+
+.solar-system__corona img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.solar-system__plane {
+  position: absolute;
+  inset: 8% 2% 4%;
+  z-index: 2;
+  transform-style: preserve-3d;
+  transform:
+    rotateX(calc(var(--orbit-tilt) + var(--py, 0) * -6deg * var(--depth-scale, 1)))
+    rotateZ(calc(var(--px, 0) * 8deg * var(--depth-scale, 1)));
+  transition: transform 180ms linear;
+}
+
+.solar-system__haze,
+.solar-system__belt {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.solar-system__haze {
+  width: 92%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(255, 196, 110, 0.1) 0%, rgba(255, 168, 70, 0.04) 38%, transparent 68%);
+}
+
+.solar-system__belt {
+  width: 58%;
+  aspect-ratio: 1;
+  border: 10px dotted color-mix(in srgb, #e8c48a 28%, transparent);
+  opacity: 0.55;
+  box-shadow: 0 0 24px rgba(232, 196, 138, 0.08);
+}
+
+.solar-system__orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--radius) * 2);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  transform-style: preserve-3d;
+}
+
+.solar-system__orbit[data-ring="0"] { --planet-size: 68px; }
+.solar-system__orbit[data-ring="1"] { --planet-size: 80px; }
+.solar-system__orbit[data-ring="2"] { --planet-size: 96px; }
+.solar-system__orbit[data-ring="3"] { --planet-size: 88px; }
+.solar-system__orbit[data-ring="4"] { --planet-size: 76px; }
+
+.solar-system__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, #f6ddb0 26%, transparent);
+  box-shadow:
+    inset 0 0 28px rgba(246, 221, 176, 0.05),
+    0 0 20px rgba(246, 221, 176, 0.05);
+  pointer-events: none;
+}
+
+.solar-system__orbit[data-ring="0"] .solar-system__ring {
+  border-color: color-mix(in srgb, #ffe7b0 40%, transparent);
+}
+
+.solar-system__track {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: solar-spin var(--period) linear infinite;
+}
+
+.solar-system__slot {
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--a));
+  transform-style: preserve-3d;
+}
+
+.solar-system__planet {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: min(var(--planet-size), 22vw);
+  translate: -50% -50%;
+  transform-origin: center center;
+  transform: rotate(calc(var(--a) * -1)) rotateX(calc(var(--orbit-tilt) * -1));
+  animation: solar-counter var(--period) linear infinite;
+}
+
+.solar-system__planet[data-focused] {
+  z-index: 3;
+  width: min(calc(var(--planet-size) + 18px), 26vw);
+  filter: drop-shadow(0 0 16px rgba(255, 220, 160, 0.4));
+}
+
+.solar-system__planet .movie-card,
+.solar-system__planet .movie-card--compact {
+  width: 100%;
+  gap: 6px;
+}
+
+.solar-system__planet .movie-card__faces,
+.solar-system__planet .movie-card__poster-wrap {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.solar-system__planet .movie-card__poster-wrap {
+  box-shadow:
+    inset -10px -14px 18px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 236, 200, 0.2),
+    0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
+.solar-system__planet .movie-card__poster-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.32), transparent 34%),
+    linear-gradient(160deg, transparent 42%, rgba(0, 0, 0, 0.38) 100%);
+  pointer-events: none;
+}
+
+.solar-system__planet .movie-card__poster {
+  width: 145%;
+  height: 145%;
+  max-width: none;
+  margin: -22.5%;
+  object-fit: cover;
+}
+
+.solar-system__planet .movie-card__glare {
+  display: none;
+}
+
+.solar-system__planet .movie-card__meta,
+.solar-system__planet .movie-card__actions {
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.solar-system__planet:hover .movie-card__meta,
+.solar-system__planet:hover .movie-card__actions,
+.solar-system__planet:focus-within .movie-card__meta,
+.solar-system__planet:focus-within .movie-card__actions,
+.solar-system__planet[data-focused] .movie-card__meta,
+.solar-system__planet[data-focused] .movie-card__actions {
+  opacity: 1;
+  transform: none;
+}
+
+.solar-system__planet .movie-card__title {
+  text-align: center;
+  font-size: 0.72rem;
+}
+
+.solar-system__planet .movie-card__sub {
+  display: none;
+}
+
+.solar-system__sun {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: min(168px, 36vw);
+  translate: -50% -50%;
+  transform: rotateX(calc(var(--orbit-tilt) * -1));
+}
+
+.solar-system__sun .movie-card__meta {
+  display: none;
+}
+
+.solar-system__caption {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  text-align: center;
+}
+
+.solar-system__caption strong {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-weight: 500;
+}
+
+.solar-system__sun .movie-card,
+.solar-system__sun .movie-card--spotlight {
+  width: 100%;
+}
+
+.solar-system__sun .movie-card__faces,
+.solar-system__sun .movie-card__poster-wrap {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.solar-system__sun .movie-card__poster-wrap {
+  box-shadow:
+    0 0 0 3px rgba(255, 214, 140, 0.28),
+    0 0 48px 12px rgba(255, 176, 70, 0.38),
+    0 0 90px 28px rgba(255, 140, 40, 0.18);
+}
+
+.solar-system__sun .movie-card__poster-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.42), transparent 32%),
+    radial-gradient(circle at 50% 50%, transparent 48%, rgba(255, 160, 50, 0.22) 100%);
+  pointer-events: none;
+}
+
+.solar-system__sun .movie-card__poster {
+  width: 145%;
+  height: 145%;
+  max-width: none;
+  margin: -22.5%;
+  object-fit: cover;
+}
+
+.solar-system__sun .movie-card__glare {
+  display: none;
+}
+
+.solar-system__sun .movie-card__title {
+  text-align: center;
+}
+
+.solar-system__sun .movie-card__sub {
+  display: none;
+}
+
+.solar-system__sun .movie-card__actions {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.solar-system__sun:hover .movie-card__actions,
+.solar-system__sun:focus-within .movie-card__actions,
+.solar-system__sun[data-focused] .movie-card__actions {
+  opacity: 1;
+}
+
+.solar-system__sun[data-focused] .movie-card__poster-wrap {
+  box-shadow:
+    0 0 0 4px rgba(255, 230, 170, 0.45),
+    0 0 60px 16px rgba(255, 186, 80, 0.5);
+}
+
+@keyframes solar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes solar-counter {
+  from {
+    transform: rotate(calc(var(--a) * -1)) rotateX(calc(var(--orbit-tilt) * -1));
+  }
+  to {
+    transform: rotate(calc(var(--a) * -1 - 360deg)) rotateX(calc(var(--orbit-tilt) * -1));
+  }
+}
+
+.solar-system__plane[data-paused] .solar-system__track,
+.solar-system__plane[data-paused] .solar-system__planet,
+.solar-system__plane[data-motion="static"] .solar-system__track,
+.solar-system__plane[data-motion="static"] .solar-system__planet {
+  animation-play-state: paused;
+}
+
+@media (max-width: 767px) {
+  .solar-system {
+    --orbit-tilt: 38deg;
+  }
+
+  .solar-system__stage {
+    min-height: 540px;
+  }
+
+  .solar-system__orbit[data-ring="0"] { --planet-size: 58px; }
+  .solar-system__orbit[data-ring="1"] { --planet-size: 68px; }
+  .solar-system__orbit[data-ring="2"] { --planet-size: 76px; }
+  .solar-system__orbit[data-ring="3"] { --planet-size: 70px; }
+
+  .solar-system__sun {
+    width: min(128px, 40vw);
+  }
+
+  .solar-system__planet .movie-card__meta,
+  .solar-system__planet .movie-card__actions {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solar-system__track,
+  .solar-system__planet {
+    animation: none !important;
+  }
+}
+
+.catalog-ruler {
+  position: sticky;
+  top: calc(var(--nav-height-scrolled, 56px) + 72px);
+  float: right;
+  display: none;
+  width: 18px;
+  height: min(48vh, 360px);
+  margin-right: -28px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 18%, transparent);
+}
+
+.catalog-ruler__fill {
+  display: block;
+  width: 100%;
+  height: var(--loaded, 8%);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 70%, white);
+}
+
+@media (min-width: 1280px) {
+  .catalog-ruler {
+    display: block;
+  }
+}
+
+@media (max-width: 767px) {
+  .catalog-hero {
+    min-height: 400px;
+  }
+
+  .catalog-controls {
+    top: calc(var(--nav-height-scrolled) + 4px);
+  }
+
+  .catalog-controls__pages {
+    display: none;
+  }
+}

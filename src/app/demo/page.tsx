@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const SHOWCASE = [
-  { href: "/copilot", title: "AI Copilot", desc: "Tool-using Cinema Agent with catalog-backed answers" },
+  { href: "/flutter-ai", title: "FlutterAI", desc: "Source-grounded movie intelligence with catalog-backed answers" },
   { href: "/tonight", title: "Tonight Picker", desc: "One primary pick + two alternatives with explanations" },
   { href: "/my-cinema", title: "Taste DNA", desc: "Persistent taste profile from real library data" },
   { href: "/intelligence/remember-wizard", title: "Scene Memory", desc: "Identify films from vague scene descriptions" },

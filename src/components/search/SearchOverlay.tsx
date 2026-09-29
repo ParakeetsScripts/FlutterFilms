@@ -129,7 +129,7 @@ export function SearchOverlay({
             <div className="sm:col-span-2">
               <p className="eyebrow">AI Copilot</p>
               <ul className="mt-3 flex flex-wrap gap-2">
-                <li><a href="/copilot" onClick={onClose} className="filter-chip">Open AI Copilot</a></li>
+                <li><a href="/flutter-ai" onClick={onClose} className="filter-chip">Open FlutterAI</a></li>
                 <li><a href="/open-models" onClick={onClose} className="filter-chip">Open Models hub</a></li>
                 <li><a href="/my-cinema" onClick={onClose} className="filter-chip">My Cinema</a></li>
               </ul>

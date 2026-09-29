@@ -1,10 +1,13 @@
 "use client";
 
+import { useMotion } from "@/components/cinematic/MotionProvider";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { track } from "@/lib/analytics/track";
+import { railOffset } from "@/lib/motion/progress";
 import { RailControls } from "./RailControls";
 import { RailProgress } from "./RailProgress";
 import {
+  Children,
   useCallback,
   useEffect,
   useId,
@@ -12,27 +15,62 @@ import {
   useState,
   type ReactNode,
   type UIEvent,
-  type WheelEvent,
 } from "react";
 
 const SCROLL_TOLERANCE = 4;
 const SCROLL_FRACTION = 0.8;
+
+export type RailDepth = "flat" | "arc";
 
 type CinematicRailProps = {
   label: string;
   children: ReactNode;
   className?: string;
   storageKey?: string;
+  /** "arc" curves cards away from the rail center as the rail scrolls (film-strip LOD). */
+  depth?: RailDepth;
 };
 
-export function CinematicRail({ label, children, className = "", storageKey }: CinematicRailProps) {
+export function CinematicRail({ label, children, className = "", storageKey, depth = "flat" }: CinematicRailProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
+  const { state } = useMotion();
   const railId = useId();
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [progress, setProgress] = useState(0);
   const [hasOverflow, setHasOverflow] = useState(false);
+  const arcEnabled = depth === "arc" && state.scrollScenes;
+  const itemCount = Children.count(children);
+  const centers = useRef<number[]>([]);
+  const arcFrame = useRef(0);
+
+  const paintArc = useCallback(() => {
+    arcFrame.current = 0;
+    const el = scrollerRef.current;
+    if (!el) return;
+    const half = el.clientWidth / 2;
+    const viewportCenter = el.scrollLeft + half;
+    Array.from(el.children).forEach((child, index) => {
+      const offset = railOffset(centers.current[index] ?? viewportCenter, viewportCenter, half * 1.15);
+      const node = child as HTMLElement;
+      node.style.setProperty("--arc", offset.toFixed(3));
+      node.style.setProperty("--arc-abs", Math.abs(offset).toFixed(3));
+    });
+  }, []);
+
+  const scheduleArc = useCallback(() => {
+    if (!arcFrame.current) arcFrame.current = requestAnimationFrame(paintArc);
+  }, [paintArc]);
+
+  const measureArc = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    centers.current = Array.from(el.children, (child) => {
+      const node = child as HTMLElement;
+      return node.offsetLeft + node.offsetWidth / 2;
+    });
+  }, []);
 
   const updateScrollState = useCallback(() => {
     const el = scrollerRef.current;
@@ -42,11 +80,7 @@ export function CinematicRail({ label, children, className = "", storageKey }: C
     setHasOverflow(overflow);
     setCanScrollLeft(overflow && scrollLeft > SCROLL_TOLERANCE);
     setCanScrollRight(overflow && scrollLeft + clientWidth < scrollWidth - SCROLL_TOLERANCE);
-    if (overflow && scrollWidth > clientWidth) {
-      setProgress(scrollLeft / (scrollWidth - clientWidth));
-    } else {
-      setProgress(0);
-    }
+    setProgress(overflow ? scrollLeft / (scrollWidth - clientWidth) : 0);
   }, []);
 
   useEffect(() => {
@@ -62,11 +96,30 @@ export function CinematicRail({ label, children, className = "", storageKey }: C
       }
     }
 
-    updateScrollState();
-    const ro = new ResizeObserver(updateScrollState);
+    const onResize = () => {
+      updateScrollState();
+      if (arcEnabled) {
+        measureArc();
+        scheduleArc();
+      }
+    };
+    onResize();
+    const ro = new ResizeObserver(onResize);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [storageKey, updateScrollState]);
+  }, [storageKey, updateScrollState, arcEnabled, measureArc, scheduleArc, itemCount]);
+
+  useEffect(() => {
+    if (arcEnabled) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    for (const child of Array.from(el.children)) {
+      (child as HTMLElement).style.removeProperty("--arc");
+      (child as HTMLElement).style.removeProperty("--arc-abs");
+    }
+  }, [arcEnabled, itemCount]);
+
+  useEffect(() => () => cancelAnimationFrame(arcFrame.current), []);
 
   const persistScroll = useCallback(() => {
     const el = scrollerRef.current;
@@ -96,6 +149,7 @@ export function CinematicRail({ label, children, className = "", storageKey }: C
     (event: UIEvent<HTMLDivElement>) => {
       updateScrollState();
       persistScroll();
+      if (arcEnabled) scheduleArc();
       const atEnd =
         event.currentTarget.scrollLeft + event.currentTarget.clientWidth >=
         event.currentTarget.scrollWidth - SCROLL_TOLERANCE;
@@ -106,17 +160,8 @@ export function CinematicRail({ label, children, className = "", storageKey }: C
         endTracked.current = false;
       }
     },
-    [label, persistScroll, updateScrollState],
+    [arcEnabled, label, persistScroll, scheduleArc, updateScrollState],
   );
-
-  const onWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
-    const el = scrollerRef.current;
-    if (!el || !hasOverflow) return;
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-    if (Math.abs(event.deltaY) < 8) return;
-    el.scrollLeft += event.deltaY;
-    event.preventDefault();
-  }, [hasOverflow]);
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -139,14 +184,20 @@ export function CinematicRail({ label, children, className = "", storageKey }: C
     [reducedMotion, scrollByPage],
   );
 
-  const showArrows = hasOverflow;
-
   return (
     <div
-      className={`row-scroller-wrap cinematic-rail ${className} ${canScrollLeft ? "cinematic-rail--can-left" : ""} ${canScrollRight ? "cinematic-rail--can-right" : ""}`}
+      className={[
+        "row-scroller-wrap cinematic-rail",
+        depth === "arc" ? "cinematic-rail--arc" : "",
+        className,
+        canScrollLeft ? "cinematic-rail--can-left" : "",
+        canScrollRight ? "cinematic-rail--can-right" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       data-rail={railId}
     >
-      {showArrows ? (
+      {hasOverflow ? (
         <RailControls
           label={label}
           canScrollLeft={canScrollLeft}
@@ -162,7 +213,6 @@ export function CinematicRail({ label, children, className = "", storageKey }: C
         aria-label={label}
         tabIndex={0}
         onScroll={onScroll}
-        onWheel={onWheel}
         onKeyDown={onKeyDown}
       >
         {children}

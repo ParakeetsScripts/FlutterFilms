@@ -5,7 +5,7 @@ export const PRIMARY_NAV: NavLink[] = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
   { href: "/discover", label: "Discover" },
-  { href: "/copilot", label: "AI" },
+  { href: "/flutter-ai", label: "FlutterAI" },
   { href: "/my-cinema", label: "My Cinema" },
   { href: "/watchlist", label: "Watchlist" },
 ];
@@ -21,7 +21,7 @@ export const MOBILE_TAB_NAV: NavLink[] = [
   { href: "/", label: "Home", icon: "⌂" },
   { href: "/about", label: "About", icon: "◉" },
   { href: "/discover", label: "Discover", icon: "◎" },
-  { href: "/copilot", label: "AI", icon: "✦" },
+  { href: "/flutter-ai", label: "FlutterAI", icon: "✦" },
   { href: "/my-cinema", label: "Cinema", icon: "◈" },
 ];
 

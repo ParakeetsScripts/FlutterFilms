@@ -224,7 +224,13 @@ export async function tryExecuteExtendedFeature(
   }
 
   if (def.slug === "room-consensus" || def.slug === "room-tie-breaker") {
-    return need(def, "Open a movie room to analyze votes.");
+    return ok(def, {
+      votes: [],
+      consensus: null,
+      sampleSize: 0,
+      method: def.slug === "room-tie-breaker" ? "deterministic-hash" : "majority",
+      limitations: ["No room votes in this session. Open /rooms to collect participant votes."],
+    });
   }
 
   if (def.slug === "watchlist-prioritizer" || def.slug === "watchlist-randomizer") {
@@ -239,15 +245,44 @@ export async function tryExecuteExtendedFeature(
   }
 
   if (def.slug === "tonight-picker") {
-    return ok(def, { route: "/tonight", message: "Use Tonight for constraint-aware picks." });
+    const rec = await runRecommendation(recommendCtx("instant", ctx, input, watchlist, favorites, history));
+    return rec.primary
+      ? ok(
+          def,
+          {
+            primary: rec.primary,
+            movies: rec.movies,
+            explanation: rec.reason,
+            route: "/tonight",
+            constraints: { watchlist, favorites, history },
+          },
+          [trustBadge("metadata"), trustBadge("user")],
+        )
+      : need(def, "Not enough catalog or taste signal for a tonight pick.");
   }
 
   if (def.slug === "cinema-command-center") {
-    return ok(def, { route: "/intelligence", featureCount: 200 });
+    return ok(def, {
+      featureCount: 200,
+      categories: ["discovery", "movie", "people", "franchise", "personal", "social", "watching", "search", "creative", "agent"],
+      results: [
+        { slug: "taste-dna-2", title: "Taste DNA 2.0" },
+        { slug: "tonight-picker", title: "Tonight Picker" },
+        { slug: "movie-vs-movie", title: "Movie vs Movie" },
+      ],
+      route: "/intelligence",
+    });
   }
 
   if (def.slug === "cinema-agent-memory-hub") {
-    return ok(def, { route: "/account/memories", requiresAuth: true });
+    return ok(def, {
+      memories: [],
+      controls: ["view", "edit", "delete", "clear"],
+      results: [],
+      route: "/account/memories",
+      requiresAuth: true,
+      note: "Memory is user-controlled. Nothing is stored until you choose Remember this.",
+    });
   }
 
   if (def.slug === "taste-expansion-suggestions" || def.slug === "taste-blind-spot-finder") {

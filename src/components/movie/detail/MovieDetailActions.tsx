@@ -16,18 +16,28 @@ export function MovieDetailActions({
 }) {
   const { toggleWatchlist, toggleFavorite, isInWatchlist, isFavorite } = useUserLibrary();
 
+  const saved = isInWatchlist(movieId);
+
   return (
-    <div className="detail-actions">
+    <div className="detail-actions" data-testid="movie-hero-actions">
       {playbackHref ? (
         <Link href={playbackHref} className="btn btn-primary">{playbackLabel}</Link>
       ) : (
         <span className="btn btn-secondary opacity-80">{playbackLabel}</span>
       )}
       {trailerHref ? (
-        <Link href={trailerHref} className="btn btn-secondary">Trailer</Link>
+        <Link href={trailerHref} className="btn btn-secondary" data-testid="movie-trailer">
+          Trailer
+        </Link>
       ) : null}
-      <button type="button" onClick={() => toggleWatchlist(movieId)} className="btn btn-secondary">
-        {isInWatchlist(movieId) ? "In watchlist" : "Watchlist"}
+      <button
+        type="button"
+        onClick={() => toggleWatchlist(movieId)}
+        className={`btn ${saved ? "btn-secondary is-saved" : "btn-secondary"}`}
+        data-testid="movie-watchlist"
+        aria-pressed={saved}
+      >
+        {saved ? "Saved" : "Add to watchlist"}
       </button>
       <button
         type="button"

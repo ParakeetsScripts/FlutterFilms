@@ -50,3 +50,25 @@ export function isStandalonePwa(): boolean {
     (window.navigator as Navigator & { standalone?: boolean }).standalone === true
   );
 }
+
+export function isSafariBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /Safari\//.test(ua) && !/Chrome\//.test(ua) && !/Edg\//.test(ua);
+}
+
+export function isIosSafari(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  const platform = detectInstallPlatform();
+  return (platform === "ios" || platform === "ipad") && isSafariBrowser();
+}
+
+/** Browsers that require Share / Add to Dock / Add to Home Screen instead of beforeinstallprompt. */
+export function needsManualInstallGuide(): boolean {
+  if (isStandalonePwa()) return false;
+  const platform = detectInstallPlatform();
+  if (platform === "ios" || platform === "ipad") return true;
+  if (platform === "mac" && isSafariBrowser()) return true;
+  return false;
+}

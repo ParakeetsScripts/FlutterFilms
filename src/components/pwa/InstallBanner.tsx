@@ -1,69 +1,42 @@
 "use client";
 
+import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { track } from "@/lib/analytics/track";
 import { SITE_NAME } from "@/lib/brand";
-import {
-  getDeferredInstallPrompt,
-  isStandalonePwa,
-  triggerInstallPrompt,
-} from "@/lib/pwa/install-prompt";
 import { getInstallCapability } from "@/lib/pwa/platform";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const DISMISS_KEY = "ff_install_dismissed";
 
 export function InstallBanner() {
-  const [show, setShow] = useState(false);
-  const [standalone, setStandalone] = useState(false);
-  const [installReady, setInstallReady] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const pathname = usePathname();
+  const { canInstall, showManualHint, standalone, install } = usePwaInstall();
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(DISMISS_KEY);
-    const installed = isStandalonePwa();
-    setStandalone(installed);
-    setInstallReady(Boolean(getDeferredInstallPrompt()));
-    if (!dismissed && !installed) setShow(true);
-
-    const onPromptReady = () => setInstallReady(Boolean(getDeferredInstallPrompt()));
-    const onInstalled = () => {
-      setStandalone(true);
-      setShow(false);
-    };
-    window.addEventListener("ff-install-prompt-ready", onPromptReady);
-    window.addEventListener("ff-pwa-installed", onInstalled);
-    return () => {
-      window.removeEventListener("ff-install-prompt-ready", onPromptReady);
-      window.removeEventListener("ff-pwa-installed", onInstalled);
-    };
+    if (localStorage.getItem(DISMISS_KEY) === "1") {
+      setDismissed(true);
+    }
   }, []);
+
+  if (pathname === "/install" || standalone || dismissed) return null;
+  if (!canInstall && !showManualHint) return null;
+
+  const capability = getInstallCapability(canInstall);
 
   function dismiss() {
     localStorage.setItem(DISMISS_KEY, "1");
-    setShow(false);
+    setDismissed(true);
   }
 
   async function installNow() {
-    setMessage(null);
-    const outcome = await triggerInstallPrompt();
-    if (outcome === "accepted") {
-      setMessage("Installation started.");
-      setShow(false);
+    const accepted = await install();
+    if (accepted) {
       track("pwa_installed", { source: "install_banner" });
-      return;
     }
-    if (outcome === "dismissed") {
-      setMessage("Install dismissed.");
-      return;
-    }
-    const capability = getInstallCapability(false);
-    setMessage(capability.summary);
   }
-
-  if (!show || standalone) return null;
-
-  const capability = getInstallCapability(installReady);
 
   return (
     <aside className="install-banner" role="region" aria-label={`Install ${SITE_NAME}`}>
@@ -73,8 +46,8 @@ export function InstallBanner() {
           <span className="install-banner__hint">{capability.summary}</span>
         </p>
         <div className="install-banner__actions">
-          {installReady ? (
-            <button type="button" className="btn btn-primary text-sm" onClick={installNow}>
+          {canInstall ? (
+            <button type="button" className="btn btn-primary text-sm" onClick={() => void installNow()}>
               Install
             </button>
           ) : (
@@ -83,10 +56,9 @@ export function InstallBanner() {
               className="btn btn-primary text-sm"
               onClick={() => track("cta_clicked", { action: "install_cta" })}
             >
-              Install guide
+              View steps
             </Link>
           )}
-          <Link href="/" className="btn btn-ghost text-sm">Continue in browser</Link>
           <button type="button" className="btn btn-ghost text-sm" onClick={dismiss}>
             Not now
           </button>
@@ -94,7 +66,6 @@ export function InstallBanner() {
             ×
           </button>
         </div>
-        {message ? <p className="install-banner__feedback text-xs text-[var(--text-muted)]">{message}</p> : null}
       </div>
     </aside>
   );

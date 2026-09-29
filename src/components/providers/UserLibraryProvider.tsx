@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/providers/AuthProvider";
+import { catalogCookieName, catalogFromSettings, serializeCatalogCookie } from "@/lib/catalog/preferences";
 import { track } from "@/lib/analytics/track";
 import { userStore, type ContinueItem, type UserSettings, defaultSettings } from "@/lib/user/store";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -29,6 +30,12 @@ type LibraryContext = {
 
 const Context = createContext<LibraryContext | null>(null);
 
+function syncCatalogCookie(settings: UserSettings) {
+  if (typeof document === "undefined") return;
+  const prefs = catalogFromSettings(settings);
+  document.cookie = `${catalogCookieName()}=${serializeCatalogCookie(prefs)}; path=/; max-age=${365 * 24 * 60 * 60}; SameSite=Lax`;
+}
+
 export function UserLibraryProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,6 +46,16 @@ export function UserLibraryProvider({ children }: { children: React.ReactNode })
   const [continueWatching, setContinueWatching] = useState<ContinueItem[]>([]);
   const [searches, setSearches] = useState<string[]>([]);
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const historyRef = useRef(history);
+  historyRef.current = history;
+
+  const recordHistory = useCallback((movieId: number) => {
+    if (historyRef.current[0] === movieId) return;
+    const next = [movieId, ...historyRef.current.filter((id) => id !== movieId)].slice(0, 80);
+    setHistory(next);
+    userStore.setHistory(next.map((id) => ({ movieId: id, viewedAt: new Date().toISOString() })));
+    track("movie_viewed", { movieId });
+  }, []);
 
   const pushToServer = useCallback(async () => {
     if (!user) return;
@@ -62,7 +79,9 @@ export function UserLibraryProvider({ children }: { children: React.ReactNode })
     setHistory(userStore.history().map((item) => item.movieId));
     setContinueWatching(userStore.continueWatching());
     setSearches(userStore.searches());
-    setSettings(userStore.settings());
+    const initialSettings = userStore.settings();
+    setSettings(initialSettings);
+    syncCatalogCookie(initialSettings);
     setReady(true);
   }, []);
 
@@ -117,12 +136,7 @@ export function UserLibraryProvider({ children }: { children: React.ReactNode })
           track("user_activated", { action: "favorite_added" });
         }
       },
-      recordHistory(movieId) {
-        const next = [movieId, ...history.filter((id) => id !== movieId)].slice(0, 80);
-        setHistory(next);
-        userStore.setHistory(next.map((id) => ({ movieId: id, viewedAt: new Date().toISOString() })));
-        track("movie_viewed", { movieId });
-      },
+      recordHistory,
       clearHistory() {
         setHistory([]);
         userStore.clearHistory();
@@ -143,6 +157,7 @@ export function UserLibraryProvider({ children }: { children: React.ReactNode })
         const next = { ...settings, ...partial };
         setSettings(next);
         userStore.setSettings(next);
+        syncCatalogCookie(next);
       },
       setFavoriteIds(movieIds) {
         setFavorites(movieIds);
@@ -157,7 +172,7 @@ export function UserLibraryProvider({ children }: { children: React.ReactNode })
         setContinueWatching(userStore.continueWatching());
       },
     }),
-    [continueWatching, favorites, history, ready, searches, settings, watchlist],
+    [continueWatching, favorites, history, ready, recordHistory, searches, settings, watchlist],
   );
 
   return <Context.Provider value={value}>{children}</Context.Provider>;

@@ -7,10 +7,11 @@ export async function searchMovies(
   query: string,
   page = 1,
   year?: number,
+  language?: string,
 ): Promise<PagedResult<MovieSummary>> {
   const raw = await tmdbFetch<TmdbPagedRaw>(
     "/search/movie",
-    { query, page, year, include_adult: false },
+    { query, page, year, language, include_adult: false },
     { ttlMs: CACHE_TTL.search, cacheKey: cacheKey(["search", query.toLowerCase(), page, year]) },
   );
   return normalizePagedMovies(raw);

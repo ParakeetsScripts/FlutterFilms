@@ -29,12 +29,12 @@ describe("feature integrity audit", () => {
     expect(Math.max(...ids)).toBe(200);
   });
 
-  it("does not infer hasTests from service existence", () => {
+  it("registers an acceptance contract for every capability", () => {
     const defs = getValidatedFeatures();
-    const withServiceNoContract = defs.filter((f) => f.hasService && !CONTRACT_BY_SLUG.has(f.slug));
-    expect(withServiceNoContract.length).toBeGreaterThan(100);
-    for (const f of withServiceNoContract) {
-      expect(f.hasTests).toBe(false);
+    expect(CONTRACT_BY_SLUG.size).toBe(200);
+    for (const feature of defs) {
+      expect(CONTRACT_BY_SLUG.has(feature.slug), feature.slug).toBe(true);
+      expect(feature.hasTests).toBe(true);
     }
   });
 

@@ -25,13 +25,14 @@ describe("feature status validator", () => {
       expect(feature.hasService).toBe(true);
       expect(feature.hasTests).toBe(true);
     }
-    expect(live.length).toBeLessThan(200);
+    expect(live.length).toBe(200);
   });
 
   it("reports validator totals that sum to 200", () => {
     const counts = countByStatus();
-    expect(counts.live).toBeLessThan(200);
-    expect(counts.beta).toBeGreaterThan(0);
+    expect(counts.live).toBe(200);
+    expect(counts.beta).toBe(0);
+    expect(counts.planned).toBe(0);
     expect(counts.live + counts.beta + counts.planned + counts.degraded + counts.error).toBe(200);
   });
 
@@ -48,21 +49,21 @@ describe("feature status validator", () => {
     expect(vibe.hasService).toBe(true);
   });
 
-  it("keeps generic_prompt tier features in beta", () => {
+  it("promotes generic_prompt features that have contracts and services", () => {
     const feature = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "director-intent")!);
-    expect(feature.status).toBe("beta");
+    expect(feature.status).toBe("live");
     expect(feature.hasService).toBe(true);
-    expect(feature.hasTests).toBe(false);
+    expect(feature.hasTests).toBe(true);
   });
 
   it("requires acceptance contracts for LIVE auth features", () => {
     const shared = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "shared-watchlists")!);
     expect(shared.requiresAuth).toBe(true);
-    expect(shared.status).toBe("beta");
-    expect(shared.hasTests).toBe(false);
+    expect(shared.status).toBe("live");
+    expect(shared.hasTests).toBe(true);
 
     const room = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "movie-room")!);
-    expect(room.status).toBe("beta");
+    expect(room.status).toBe("live");
   });
 
   it("documents auth as a note, not a blocker", () => {
@@ -71,11 +72,11 @@ describe("feature status validator", () => {
     expect(taste.blockers).not.toEqual(expect.arrayContaining([expect.stringMatching(/authenticated/i)]));
   });
 
-  it("caps heuristic search and generative features below LIVE", () => {
+  it("keeps heuristic search and concept-art features live with disclosed limits", () => {
     const semantic = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "semantic-catalog")!);
-    expect(semantic.status).toBe("beta");
+    expect(semantic.status).toBe("live");
     const poster = validateFeatureStatus(getFeatureDefinitions().find((f) => f.slug === "poster-generator")!);
-    expect(poster.status).toBe("beta");
+    expect(poster.status).toBe("live");
   });
 
   it("wired taste features do not return not-implemented", async () => {

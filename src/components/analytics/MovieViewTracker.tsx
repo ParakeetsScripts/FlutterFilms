@@ -7,6 +7,8 @@ export function MovieViewTracker({ movieId }: { movieId: number }) {
   const { recordHistory } = useUserLibrary();
   useEffect(() => {
     recordHistory(movieId);
-  }, [movieId, recordHistory]);
+    // Intentionally once per movie visit — recordHistory is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movieId]);
   return null;
 }

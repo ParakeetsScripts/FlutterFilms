@@ -19,17 +19,17 @@ describe("200-feature catalog integrity", () => {
     expect(Math.max(...ids)).toBe(200);
   });
 
-  it("does not claim all 200 are LIVE without contracts", () => {
+  it("marks all 200 as LIVE only with contracts", () => {
     const counts = countByStatus();
-    expect(counts.live).toBeLessThan(200);
-    expect(counts.live).toBeLessThanOrEqual(CONTRACT_BY_SLUG.size);
-    expect(counts.beta).toBeGreaterThan(0);
+    expect(CONTRACT_BY_SLUG.size).toBe(200);
+    expect(counts.live).toBe(200);
+    expect(counts.beta).toBe(0);
+    expect(counts.planned).toBe(0);
   });
 
-  it("extended catalog entries without contracts remain beta", () => {
+  it("extended catalog entries are live once contracted", () => {
     const extendedSlugs = new Set(FEATURE_CATALOG_EXTENDED.map((f) => f.slug));
     const extended = getValidatedFeatures().filter((f) => extendedSlugs.has(f.slug));
-    const liveExtended = extended.filter((f) => f.status === "live");
-    expect(liveExtended.length).toBeLessThan(extended.length);
+    expect(extended.every((f) => f.status === "live")).toBe(true);
   });
 });

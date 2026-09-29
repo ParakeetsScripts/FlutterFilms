@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { SpoilerLevel } from "@/lib/ai/intelligence/briefing";
+import { overviewLineForSpoiler } from "@/lib/ai/spoiler-filter";
 import { getCatalogMovie, searchCatalog } from "@/lib/sync/catalog";
 
 import type { MovieEvidence } from "./types";
@@ -38,10 +40,14 @@ export async function resolveMovieEvidenceFromQuery(query: string): Promise<Movi
   return contexts;
 }
 
-export function formatMovieEvidenceBlock(movies: MovieEvidence[]): string {
+export function formatMovieEvidenceBlock(
+  movies: MovieEvidence[],
+  spoilerLevel: SpoilerLevel = "none",
+): string {
   if (!movies.length) return "";
   return movies
     .map((m) => {
+      const overviewLine = overviewLineForSpoiler(m.tmdb?.overview, spoilerLevel);
       const lines = [
         `${m.title}${m.year ? ` (${m.year})` : ""} · TMDB ${m.movieId}`,
         m.tmdb?.runtime ? `Runtime: ${m.tmdb.runtime} min (TMDB)` : null,
@@ -49,8 +55,13 @@ export function formatMovieEvidenceBlock(movies: MovieEvidence[]): string {
         m.tmdb?.genres?.length ? `Genres: ${m.tmdb.genres.join(", ")} (TMDB)` : null,
         m.tmdb?.rating != null ? `TMDB rating: ${m.tmdb.rating}` : null,
         m.imdb?.rating != null ? `IMDb rating: ${m.imdb.rating} (separate source)` : null,
+        m.tmdb?.tagline && spoilerLevel !== "none" ? `Tagline: ${m.tmdb.tagline}` : null,
+        overviewLine,
         m.cast?.length ? `Cast: ${m.cast.join(", ")} (TMDB)` : null,
         m.crew?.length ? `Crew: ${m.crew.join(", ")} (TMDB)` : null,
+        m.tmdb?.keywords?.length && spoilerLevel !== "none"
+          ? `Keywords: ${m.tmdb.keywords.join(", ")} (TMDB)`
+          : null,
         m.conflicts?.length
           ? `Source notes: ${m.conflicts.map((c) => `${c.field} TMDB=${c.tmdb ?? "n/a"} IMDb=${c.imdb ?? "n/a"}`).join("; ")}`
           : null,

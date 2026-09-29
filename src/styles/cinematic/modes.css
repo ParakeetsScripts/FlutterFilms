@@ -1,0 +1,57 @@
+/* ── Motion modes. Reduced: still and flat, hierarchy intact. Static: no 3D, no decorative animation. ── */
+
+html[data-motion="reduced"] .film-grain,
+html[data-motion="static"] .film-grain,
+html.reduce-motion .film-grain {
+  display: none;
+}
+
+html[data-motion="static"] *,
+html[data-motion="static"] *::before,
+html[data-motion="static"] *::after {
+  animation: none !important;
+}
+
+html[data-motion="reduced"] .movie-card--flippable .movie-card__faces,
+html[data-motion="static"] .movie-card--flippable .movie-card__faces,
+html.reduce-motion .movie-card--flippable .movie-card__faces {
+  transform: none !important;
+}
+
+html[data-motion="reduced"] .movie-card__back,
+html[data-motion="static"] .movie-card__back,
+html.reduce-motion .movie-card__back {
+  transform: none;
+  backface-visibility: visible;
+  opacity: 0;
+  visibility: hidden;
+}
+
+html[data-motion="reduced"] .movie-card[data-flipped] .movie-card__back,
+html[data-motion="static"] .movie-card[data-flipped] .movie-card__back,
+html.reduce-motion .movie-card[data-flipped] .movie-card__back {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film-grain {
+    display: none;
+  }
+
+  .movie-card--flippable .movie-card__faces {
+    transform: none !important;
+  }
+
+  .movie-card__back {
+    transform: none;
+    backface-visibility: visible;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .movie-card[data-flipped] .movie-card__back {
+    opacity: 1;
+    visibility: visible;
+  }
+}

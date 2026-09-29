@@ -15,7 +15,7 @@ const STEPS = [
 
 const FEATURES = [
   { title: "Movie discovery", href: "/movies", desc: "Browse, search, and filter the catalog." },
-  { title: "Cinema Agent", href: "/copilot", desc: "Conversational movie intelligence with tools and evidence." },
+  { title: "FlutterAI", href: "/flutter-ai", desc: "Source-grounded movie intelligence with tools and evidence." },
   { title: "Personal taste", href: "/my-cinema", desc: "Taste DNA, favorites, and your cinema profile." },
   { title: "Tonight", href: "/tonight", desc: "Constraint-aware picks for right now." },
   { title: "Smart Catalog Search", href: "/intelligence", desc: "Metadata and catalog intelligence — not vector embeddings." },
@@ -150,7 +150,7 @@ export function AboutPageContent({ features }: { features: AboutFeature[] }) {
         <h2 className="section-title">Explore capabilities</h2>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
-            <Link key={f.href} href={f.href} className="ai-usage-card block transition hover:border-[var(--accent)]">
+            <Link key={f.title} href={f.href} className="ai-usage-card block transition hover:border-[var(--accent)]">
               <h3 className="font-medium">{f.title}</h3>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">{f.desc}</p>
             </Link>
@@ -167,7 +167,7 @@ export function AboutPageContent({ features }: { features: AboutFeature[] }) {
         <p className="mt-2 text-[var(--text-secondary)]">Start exploring with verified data and your taste.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/movies" className="btn btn-primary">Explore movies</Link>
-          <Link href="/copilot" className="btn btn-secondary">Ask Cinema Agent</Link>
+          <Link href="/flutter-ai" className="btn btn-secondary">Ask FlutterAI</Link>
           <Link href="/install" className="btn btn-ghost">Install {SITE_NAME}</Link>
         </div>
         <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm">

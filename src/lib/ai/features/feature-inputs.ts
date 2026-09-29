@@ -50,6 +50,21 @@ const MESSAGE_SLUGS = new Set(["cinema-agent"]);
 
 const PROFILES_SLUGS = new Set(["group-picker", "taste-intersection", "taste-match", "couple-planner", "group-taste-merge", "friend-recs"]);
 
+const ANCHOR_MOVIE_SLUGS = new Set(["attention-requirement"]);
+
+const ATTENTION_SLUGS = new Set(["attention-requirement"]);
+
+export function inputFieldsForSlug(slug: string) {
+  return {
+    needsQuery: QUERY_SLUGS.has(slug),
+    needsMovie: MOVIE_SLUGS.has(slug) || slug.includes("like-") || slug.includes("similarity") || ANCHOR_MOVIE_SLUGS.has(slug),
+    needsCompare: COMPARE_SLUGS.has(slug) || slug === "franchise-similarity",
+    needsPerson: PERSON_SLUGS.has(slug),
+    needsCollection: slug === "franchise-catchup" || FRANCHISE_SLUGS.has(slug) || slug === "remake-evolution",
+    needsAttention: ATTENTION_SLUGS.has(slug),
+  };
+}
+
 export function defaultInputForSlug(slug: string): Record<string, unknown> {
   const input: Record<string, unknown> = {};
 
@@ -94,6 +109,10 @@ export function defaultInputForSlug(slug: string): Record<string, unknown> {
   }
   if (slug === "friend-recs") {
     input.friendProfile = { label: "Friend", movieIds: [13, 155] };
+  }
+  if (ANCHOR_MOVIE_SLUGS.has(slug)) {
+    input.movieId = DEFAULT_FIXTURE_IDS.movieId;
+    input.attention = "background";
   }
   if (slug === "poster-generator" || slug.includes("poster") || slug.includes("graphic") || slug.includes("card")) {
     input.title = "Movie Night";

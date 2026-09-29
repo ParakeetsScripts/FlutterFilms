@@ -24,8 +24,7 @@ describe("LIVE feature runtime regression", () => {
       expect(tierAllowsLive(implementationTierForSlug(feature.slug))).toBe(true);
       expect(CONTRACT_BY_SLUG.has(feature.slug)).toBe(true);
     }
-    expect(live.length).toBeGreaterThan(0);
-    expect(live.length).toBeLessThan(200);
+    expect(live.length).toBe(200);
   });
 
   it("executes every LIVE slug with contract validation", async () => {

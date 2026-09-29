@@ -38,7 +38,7 @@ import { getPosterUrl } from "@/lib/tmdb/images";
 import type { MovieSummary } from "@/lib/tmdb/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type MouseEvent } from "react";
 
 export type DiscoverCatalogProps = {
   queryKey: string;
@@ -179,6 +179,12 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [focusId]);
 
+  useEffect(() => {
+    if (focusId === null || !window.matchMedia("(max-width: 767px)").matches) return;
+    const panel = document.querySelector<HTMLElement>(".catalog-focus:not(.catalog-focus--idle)");
+    panel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [focusId]);
+
   useEffect(() => () => window.clearTimeout(focusTimer.current), []);
 
   async function loadMore() {
@@ -217,6 +223,18 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
     else focusTimer.current = window.setTimeout(() => setFocusId(id), FOCUS_DELAY_MS);
   }
 
+  function inspectTap(event: MouseEvent) {
+    if (!window.matchMedia("(hover: none) and (pointer: coarse)").matches) return;
+    const link = event.target instanceof Element ? event.target.closest("a[href^='/movie/']") : null;
+    const cell = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-movie-id]") : null;
+    if (!link || !cell) return;
+    const id = Number(cell.dataset.movieId);
+    if (focusId === id) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setFocusId(id);
+  }
+
   const showInspector = view !== "archive";
 
   return (
@@ -251,7 +269,40 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
           <h1 id="catalog-title" className="catalog-hero__title">
             {props.title}
           </h1>
-          <p className="catalog-hero__orientation">
+          <dl className="catalog-hero__facts">
+            <div>
+              <dt>Matches</dt>
+              <dd>
+                <AnimatedCount value={initial.totalResults} persist /> titles
+              </dd>
+            </div>
+            <div>
+              <dt>Sort</dt>
+              <dd>{props.sortLabel}</dd>
+            </div>
+            <div>
+              <dt>Page</dt>
+              <dd>
+                {formatCount(initial.page)} of {formatPageCount(initial.totalPages)}
+              </dd>
+            </div>
+            {isCappedTotal(initial.totalResults) ? (
+              <div>
+                <dt>Catalog cap</dt>
+                <dd>TMDB reports 20,000+ for large sets</dd>
+              </div>
+            ) : null}
+            {props.contextNotes.map((note) => {
+              const [label, ...rest] = note.split(":");
+              return (
+                <div key={note}>
+                  <dt>{rest.length ? label : "Filter"}</dt>
+                  <dd>{rest.length ? rest.join(":").trim() : note}</dd>
+                </div>
+              );
+            })}
+          </dl>
+          <p className="catalog-hero__orientation catalog-hero__orientation--desktop">
             <span>
               <AnimatedCount value={initial.totalResults} persist /> titles match your filters
             </span>
@@ -349,11 +400,12 @@ export function DiscoverCatalog(props: DiscoverCatalogProps) {
                 onPointerOver={(event) => inspect(event.target, false)}
                 onPointerLeave={() => window.clearTimeout(focusTimer.current)}
                 onFocus={(event) => inspect(event.target, true)}
+                onClickCapture={inspectTap}
               >
                 {view === "archive" ? (
                   <CatalogArchive movies={movies} firstPage={initial.page} />
                 ) : view === "constellation" ? (
-                  <CatalogConstellation movies={movies} focusId={focusId} />
+                  <CatalogConstellation movies={movies} focusId={focusId} firstPage={initial.page} />
                 ) : view === "grid" ? (
                   <div className="movie-grid catalog-grid">
                     {movies.map((movie, index) => (

@@ -4,10 +4,13 @@ import { useMotion } from "@/components/cinematic/MotionProvider";
 import { usePointerTarget } from "@/components/cinematic/CinematicScene";
 import { MovieCard } from "@/components/movie/MovieCard";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { resultPosition } from "@/lib/discover/catalog-view";
 import { layoutSolarSystem, planetAngle } from "@/lib/discover/solar-system";
 import { cssVars } from "@/lib/motion/css-vars";
+import { moviePath } from "@/lib/slug";
 import { getPosterUrl } from "@/lib/tmdb/images";
 import type { MovieSummary } from "@/lib/tmdb/types";
+import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
 
 /** Fixed starfield — decoration only, not catalog data. */
@@ -47,9 +50,11 @@ const STARS: ReadonlyArray<[number, number, number]> = [
 export function CatalogConstellation({
   movies,
   focusId,
+  firstPage,
 }: {
   movies: MovieSummary[];
   focusId: number | null;
+  firstPage: number;
 }) {
   const reducedMotion = useReducedMotion();
   const { state } = useMotion();
@@ -151,7 +156,6 @@ export function CatalogConstellation({
             </div>
           ) : null}
         </div>
-
       </div>
 
       {layout.sun ? (
@@ -162,6 +166,45 @@ export function CatalogConstellation({
           <strong>{layout.sun.title}</strong>
         </p>
       ) : null}
+
+      <ol className="solar-system__index" aria-label="This page in catalog order">
+        {movies.map((movie, index) => {
+          const position = resultPosition(firstPage, index);
+          const isSun = layout.sun?.id === movie.id;
+          return (
+            <li
+              key={movie.id}
+              className="solar-system__index-item"
+              data-movie-id={movie.id}
+              data-focused={movie.id === focusId ? "true" : undefined}
+              data-sun={isSun ? "true" : undefined}
+            >
+              <span className="solar-system__index-rank">{position}</span>
+              <Link href={moviePath(movie.id, movie.title)} className="solar-system__index-link">
+                <span className="solar-system__index-poster poster-fallback">
+                  {(() => {
+                    const src = getPosterUrl(movie.posterPath, "w92");
+                    return src ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={src} alt="" loading="lazy" />
+                    ) : (
+                      <span>{movie.title}</span>
+                    );
+                  })()}
+                </span>
+                <span className="solar-system__index-copy">
+                  <strong>{movie.title}</strong>
+                  <span>
+                    {isSun ? "Center · " : ""}
+                    {movie.year ?? "Year unknown"}
+                    {movie.voteAverage ? ` · TMDB ${movie.voteAverage.toFixed(1)}` : ""}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

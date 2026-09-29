@@ -27,7 +27,10 @@ export function CatalogFocusPanel({ movie, onClose }: { movie: MovieSummary | nu
     return (
       <aside className="catalog-focus catalog-focus--idle" aria-label="Film inspector">
         <p className="micro-label">Inspector</p>
-        <p className="catalog-focus__hint">Hover or tab to a film to inspect it here. Click a poster to open it.</p>
+        <p className="catalog-focus__hint">
+          <span className="catalog-focus__hint-touch">Tap a title once to inspect it here, then tap again to open.</span>
+          <span className="catalog-focus__hint-pointer">Hover or tab to a film to inspect it here. Click a poster to open it.</span>
+        </p>
       </aside>
     );
   }

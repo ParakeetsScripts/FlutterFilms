@@ -35,7 +35,10 @@ export function ViewModeSwitcher({ value, onChange }: { value: CatalogViewMode; 
             className={`view-switcher__option ${checked ? "is-active" : ""}`}
             onClick={() => onChange(mode.id)}
           >
-            {mode.label}
+            <span className="view-switcher__label view-switcher__label--long">{mode.label}</span>
+            <span className="view-switcher__label view-switcher__label--short" aria-hidden="true">
+              {mode.id === "constellation" ? "Orbit" : mode.label.slice(0, 4)}
+            </span>
           </button>
         );
       })}

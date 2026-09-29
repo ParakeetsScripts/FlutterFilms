@@ -164,7 +164,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             <button type="button" onClick={() => setSearchOpen(true)} className="search-trigger" aria-label="Search">
               <span className="search-trigger__label">Search</span>
-              <kbd>{modKey} K</kbd>
+              <kbd suppressHydrationWarning>{modKey} K</kbd>
             </button>
             <InstallButton variant="header" />
             <Link href={user ? "/account" : "/login"} className="btn btn-ghost btn-header-auth">

@@ -70,6 +70,7 @@ function streamOpenAi(body: ReadableStream<Uint8Array>, onToken: (chunk: string)
 }
 
 export async function POST(request: Request) {
+  let asked = "";
   try {
     rateLimit(`ai-chat:${clientKey(request)}`, 20);
     const body = (await request.json()) as {
@@ -92,7 +93,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Messages required." }, { status: 400 });
     }
 
-    const session = await getSessionUser();
+    let session: Awaited<ReturnType<typeof getSessionUser>> = null;
+    try {
+      session = await getSessionUser();
+    } catch {
+      session = null;
+    }
     let watchlist = body.watchlist ?? [];
     let favorites = body.favorites ?? [];
     let history = body.history ?? [];
@@ -105,6 +111,7 @@ export async function POST(request: Request) {
     }
 
     const lastUser = messages.filter((m) => m.role === "user").at(-1)?.content ?? "";
+    asked = lastUser;
     const useTools = body.useAgentTools !== false;
     let toolResults = "";
     let sources: string[] = [];
@@ -112,18 +119,22 @@ export async function POST(request: Request) {
     let agentMemory = body.agentMemory;
 
     if (useTools && lastUser.trim()) {
-      const agentRun = await runCinemaAgent({
-        message: lastUser,
-        userId: session?.id,
-        watchlist,
-        favorites,
-        history,
-        sessionContext: body.sessionContext,
-        onToolProgress: (event) => toolEvents.push(event),
-      });
-      toolResults = `${agentRun.promptBlock}\n\n${agentRun.memoryBlock}`.trim();
-      sources = agentRun.sources;
-      agentMemory = agentRun.agentMemory;
+      try {
+        const agentRun = await runCinemaAgent({
+          message: lastUser,
+          userId: session?.id,
+          watchlist,
+          favorites,
+          history,
+          sessionContext: body.sessionContext,
+          onToolProgress: (event) => toolEvents.push(event),
+        });
+        toolResults = `${agentRun.promptBlock}\n\n${agentRun.memoryBlock}`.trim();
+        sources = agentRun.sources;
+        agentMemory = agentRun.agentMemory;
+      } catch {
+        toolResults = "";
+      }
     }
 
     const { upstream, model, routeReason } = await runCopilotChat({
@@ -201,6 +212,15 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "NO_MODEL_CONFIGURED") {
+      const greeting = /^(hi|hello|hey|yo)\b/i.test(asked);
+      const text = greeting
+        ? "Hi. I'm FlutterAI. No language model is connected on this server yet, so I can't run a full conversation. Ask about a movie title and I'll use FlutterFilms catalog data where I can, or connect a local model or cloud provider to enable full answers."
+        : "No language model is connected on this server, so I can't complete that request. FlutterFilms catalog tools still work for movie lookups once a model or local endpoint is configured.";
+      return new Response(text, {
+        headers: { "Content-Type": "text/plain; charset=utf-8", "X-Route-Reason": "No model connected" },
+      });
+    }
     const { sanitizePublicErrorMessage } = await import("@/lib/errors/public-message");
     const message = sanitizePublicErrorMessage(
       error instanceof Error ? error.message : "AI request failed.",

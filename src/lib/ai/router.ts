@@ -75,14 +75,12 @@ export async function routeAutoModel(
   const ollamaUrl = process.env.OLLAMA_BASE_URL?.trim();
   const localEndpoint = process.env.AI_LOCAL_ENDPOINT?.trim();
   if (!ollamaUrl && !localEndpoint && !process.env.OPENAI_API_KEY?.trim()) {
-    throw new Error(
-      "No AI model configured. Set OLLAMA_BASE_URL, AI_LOCAL_ENDPOINT, or OPENAI_API_KEY in your environment.",
-    );
+    throw new Error("NO_MODEL_CONFIGURED");
   }
   if (ollamaUrl || localEndpoint) {
     throw new Error(
       "Ollama endpoint is configured but unreachable or has no installed models. Verify the server is online and models are pulled.",
     );
   }
-  throw new Error("OpenAI is configured but unreachable. Check OPENAI_API_KEY and network access.");
+  throw new Error("The cloud model is configured but unreachable. Check the provider key and network access.");
 }

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { boolParam, getDatabase } from "@/lib/db/client";
+import { DatabaseUnavailableError } from "@/lib/db/errors";
 import { DEFAULT_MODEL_REGISTRY, DEFAULT_PROVIDERS } from "./registry";
 import { buildOllamaDynamicModels, buildOpenAiCompatibleDynamicModels } from "./dynamic-models";
 import {
@@ -77,6 +78,7 @@ export async function recordModelUsage(input: {
   costType: string;
   requestId?: string;
 }) {
+  try {
   const db = await getDatabase();
   const now = new Date().toISOString();
   await db.run(
@@ -99,9 +101,21 @@ export async function recordModelUsage(input: {
     input.success ? 0 : 1,
     input.modelId,
   ]);
+  } catch (error) {
+    if (!(error instanceof DatabaseUnavailableError)) throw error;
+  }
 }
 
 export async function getModelsWithHealth(): Promise<AiModel[]> {
+  try {
+    return await getModelsWithHealthFromDatabase();
+  } catch (error) {
+    if (error instanceof DatabaseUnavailableError) return modelsWithoutDatabase();
+    throw error;
+  }
+}
+
+async function getModelsWithHealthFromDatabase(): Promise<AiModel[]> {
   await seedAiRegistry();
   const db = await getDatabase();
   const rows = await db.all<Record<string, unknown>>("SELECT * FROM ai_models ORDER BY name");
@@ -240,7 +254,92 @@ export async function getModelsWithHealth(): Promise<AiModel[]> {
   return [...mapped, ...dynamicOllama, ...dynamicLocalOpenAi];
 }
 
+async function modelsWithoutDatabase(): Promise<AiModel[]> {
+  const now = new Date().toISOString();
+  let ollamaOnline = false;
+  let ollamaInstalled = new Map<string, { size: number }>();
+  if (getOllamaBaseUrl()) {
+    try {
+      await probeOllamaLatency();
+      const tags = await listOllamaModels();
+      ollamaOnline = true;
+      ollamaInstalled = new Map(tags.map((t) => [t.name, { size: t.size }]));
+    } catch {
+      ollamaOnline = false;
+    }
+  }
+
+  let localOpenAiOnline = false;
+  let localOpenAiModelIds: string[] = [];
+  if (getLocalOpenAiConfig()) {
+    try {
+      await probeOpenAiCompatibleLatency();
+      localOpenAiModelIds = await listLocalOpenAiModels();
+      localOpenAiOnline = true;
+    } catch {
+      localOpenAiOnline = false;
+    }
+  }
+
+  let openAiCloudOnline = false;
+  if (getOpenAiCloudConfig()) {
+    try {
+      const config = getOpenAiCloudConfig()!;
+      const response = await fetch(`${config.base}/models`, {
+        headers: { Authorization: `Bearer ${config.apiKey}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      openAiCloudOnline = response.ok;
+    } catch {
+      openAiCloudOnline = false;
+    }
+  }
+
+  const mapped: AiModel[] = DEFAULT_MODEL_REGISTRY.map((model) => {
+    let health: AiHealthStatus = "offline";
+    if (model.providerId === "ollama" && ollamaOnline && ollamaInstalled.has(model.apiModelId)) health = "connected";
+    if (model.providerId === "local_openai" && localOpenAiOnline) health = "connected";
+    if (model.providerId === "openai" && openAiCloudOnline) health = "connected";
+    return {
+      ...model,
+      healthStatus: model.enabled ? health : "offline",
+      lastChecked: now,
+      requestCount: 0,
+      errorCount: 0,
+      loaded: health === "connected",
+      sizeBytes: null,
+    };
+  });
+
+  const existingApiIds = new Set(mapped.map((m) => m.apiModelId));
+  const dynamicOllama = ollamaOnline && ollamaInstalled.size ? buildOllamaDynamicModels(ollamaInstalled, existingApiIds, now) : [];
+  for (const model of dynamicOllama) existingApiIds.add(model.apiModelId);
+  const dynamicLocalOpenAi =
+    localOpenAiOnline && localOpenAiModelIds.length
+      ? buildOpenAiCompatibleDynamicModels(localOpenAiModelIds, existingApiIds, now)
+      : [];
+  return [...mapped, ...dynamicOllama, ...dynamicLocalOpenAi];
+}
+
 export async function getProviders(): Promise<AiProvider[]> {
+  try {
+    return await getProvidersFromDatabase();
+  } catch (error) {
+    if (!(error instanceof DatabaseUnavailableError)) throw error;
+    return DEFAULT_PROVIDERS.map((provider) => ({
+      ...provider,
+      endpoint: null,
+      enabled: true,
+      healthStatus: "unknown" as const,
+      lastChecked: null,
+      latencyMs: null,
+      errorRate: 0,
+      requestCount: 0,
+    }));
+  }
+}
+
+async function getProvidersFromDatabase(): Promise<AiProvider[]> {
   await seedAiRegistry();
   const db = await getDatabase();
   const rows = await db.all<Record<string, unknown>>("SELECT * FROM ai_providers ORDER BY name");

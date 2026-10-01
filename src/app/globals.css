@@ -2210,12 +2210,75 @@ html.reduce-motion .detail-hero-v2__backdrop--animated {
 }
 
 .trailer-frame {
+  position: relative;
   aspect-ratio: 16 / 9;
   max-width: 48rem;
   overflow: hidden;
   border-radius: var(--radius-lg);
   background: #000;
   box-shadow: var(--shadow-lg);
+}
+
+.trailer-poster {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: end start;
+  padding: 16px;
+  border: 0;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trailer-poster img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.trailer-poster__play {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-bottom: 8px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.72);
+  font-weight: 600;
+}
+
+.trailer-poster__name {
+  position: relative;
+  z-index: 1;
+  font-size: 0.85rem;
+}
+
+.detail-hero-v2__media {
+  position: relative;
+}
+
+.detail-hero-v2__play {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 3;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.72);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .gallery-preview {

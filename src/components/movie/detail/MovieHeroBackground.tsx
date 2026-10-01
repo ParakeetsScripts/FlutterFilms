@@ -1,5 +1,6 @@
 "use client";
 
+import { useUserLibrary } from "@/components/providers/UserLibraryProvider";
 import { getPrimaryHeroVideo, youtubeEmbedUrl } from "@/lib/tmdb/videos";
 import type { Video } from "@/lib/tmdb/types";
 import { useEffect, useMemo, useState } from "react";
@@ -35,11 +36,14 @@ export function MovieHeroBackground({
   backdrop?: string | null;
   initialVideos: Video[];
 }) {
+  const { settings } = useUserLibrary();
   const [videos, setVideos] = useState(initialVideos);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [mobile, setMobile] = useState(false);
+  const [mobile, setMobile] = useState(true);
+  const [measured, setMeasured] = useState(false);
   const [saveData, setSaveData] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
+  const [userStarted, setUserStarted] = useState(false);
 
   useEffect(() => {
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -48,6 +52,7 @@ export function MovieHeroBackground({
       setReduceMotion(motion.matches);
       setMobile(viewport.matches);
       setSaveData(prefersSaveData());
+      setMeasured(true);
     };
     update();
     motion.addEventListener("change", update);
@@ -75,7 +80,9 @@ export function MovieHeroBackground({
   }, [movieId, initialVideos]);
 
   const heroVideo = useMemo(() => getPrimaryHeroVideo(videos), [videos]);
-  const showVideo = Boolean(heroVideo && !reduceMotion && !mobile && !saveData && !videoFailed);
+  const ambientAllowed =
+    measured && Boolean(heroVideo) && !reduceMotion && !mobile && !saveData && settings.autoplayTrailers;
+  const showVideo = Boolean(heroVideo && !videoFailed && (userStarted || ambientAllowed));
 
   useEffect(() => {
     setVideoFailed(false);
@@ -96,16 +103,21 @@ export function MovieHeroBackground({
         />
       ) : null}
       {showVideo && heroVideo ? (
-        <div className="detail-hero-v2__video" aria-hidden="true">
+        <div className="detail-hero-v2__video" aria-hidden={userStarted ? undefined : true}>
           <iframe
-            title=""
+            title={userStarted ? "Trailer" : ""}
             src={heroEmbedUrl(heroVideo.key)}
             allow="autoplay; encrypted-media; picture-in-picture"
-            tabIndex={-1}
-            style={{ pointerEvents: "none" }}
+            tabIndex={userStarted ? 0 : -1}
+            style={{ pointerEvents: userStarted ? "auto" : "none" }}
             onError={() => setVideoFailed(true)}
           />
         </div>
+      ) : null}
+      {!showVideo && heroVideo && measured ? (
+        <button type="button" className="detail-hero-v2__play" onClick={() => setUserStarted(true)}>
+          Play trailer
+        </button>
       ) : null}
     </div>
   );

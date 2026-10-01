@@ -1,6 +1,7 @@
 "use client";
 
 import { CinemaPlayer } from "@/components/player/CinemaPlayer";
+import { useUserLibrary } from "@/components/providers/UserLibraryProvider";
 import { getPosterUrl } from "@/lib/tmdb/images";
 import { getPrimaryTrailer, youtubeWatchUrl } from "@/lib/tmdb/videos";
 import type { Video } from "@/lib/tmdb/types";
@@ -18,8 +19,16 @@ export function MovieTrailerSection({
   initialVideos: Video[];
 }) {
   const poster = getPosterUrl(posterPath, "w780");
+  const { settings } = useUserLibrary();
   const [videos, setVideos] = useState(initialVideos);
   const [loading, setLoading] = useState(!getPrimaryTrailer(initialVideos));
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    if (!settings.autoplayTrailers) return;
+    if (window.matchMedia("(max-width: 899px), (prefers-reduced-motion: reduce)").matches) return;
+    setPlaying(true);
+  }, [settings.autoplayTrailers]);
 
   useEffect(() => {
     if (getPrimaryTrailer(initialVideos)) return;
@@ -48,19 +57,30 @@ export function MovieTrailerSection({
         <p className="text-sm text-[var(--text-muted)]">Loading trailer…</p>
       ) : trailer ? (
         <div className="trailer-frame">
-          <CinemaPlayer
-            source={{
-              providerId: "tmdb-youtube",
-              movieId,
-              type: "embed",
-              url: youtubeWatchUrl(trailer.key),
-              title: trailer.name,
-            }}
-            poster={poster ?? undefined}
-            movieId={movieId}
-            movieTitle={movieTitle}
-            mode="trailer"
-          />
+          {playing ? (
+            <CinemaPlayer
+              source={{
+                providerId: "tmdb-youtube",
+                movieId,
+                type: "embed",
+                url: youtubeWatchUrl(trailer.key),
+                title: trailer.name,
+              }}
+              poster={poster ?? undefined}
+              movieId={movieId}
+              movieTitle={movieTitle}
+              mode="trailer"
+            />
+          ) : (
+            <button type="button" className="trailer-poster" onClick={() => setPlaying(true)}>
+              {poster ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={poster} alt="" />
+              ) : null}
+              <span className="trailer-poster__play">Play trailer</span>
+              <span className="trailer-poster__name">{trailer.name}</span>
+            </button>
+          )}
         </div>
       ) : (
         <p className="text-sm text-[var(--text-secondary)]">

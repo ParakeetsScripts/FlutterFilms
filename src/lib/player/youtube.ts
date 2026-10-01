@@ -105,6 +105,7 @@ export function mountYoutubePlayer(
     player = new window.YT.Player(host, {
       videoId,
       playerVars: {
+        autoplay: 0,
         rel: 0,
         modestbranding: 1,
         playsinline: 1,

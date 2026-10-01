@@ -138,6 +138,71 @@
     margin-inline: calc(var(--gutter) * -1);
   }
 
+  .detail-hero-v2__play,
+  .trailer-poster {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: 44px;
+    border: 0;
+    background: linear-gradient(180deg, transparent 20%, rgb(0 0 0 / 0.55));
+    color: white;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .trailer-frame {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    margin-inline: calc(var(--gutter) * -1);
+    border-radius: 0;
+  }
+
+  .trailer-poster {
+    position: relative;
+    display: grid;
+    aspect-ratio: 16 / 9;
+    place-items: end start;
+    padding: 16px;
+    overflow: hidden;
+    background: #000;
+  }
+
+  .trailer-poster img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .trailer-poster__play,
+  .trailer-poster__name {
+    position: relative;
+    z-index: 1;
+  }
+
+  .trailer-poster__play {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-bottom: 8px;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.72);
+  }
+
+  .cinema-player__youtube-host,
+  .cinema-player__youtube-host iframe {
+    width: 100%;
+    height: 100%;
+  }
+
   /* ── Intelligence / FlutterAI ── */
   .intel-room,
   .flutter-ai-page {
